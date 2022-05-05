@@ -180,8 +180,8 @@ class Linter(visitor.Visitor):
         parser.feed(node.value)
         for text in parser.extracted_text:
             # To check for apostrophes, first remove pairs of straigh quotes
-            # used as delimiters.
-            cleaned_str = re.sub(self.single_quote_re, "\1", node.value)
+            # (single or double) used as delimiters.
+            cleaned_str = node.value.strip('"').strip("'")
             if self.apostrophe_re.search(cleaned_str):
                 self.add_error(
                     node,
@@ -194,13 +194,13 @@ class Linter(visitor.Visitor):
                     "TE02",
                     "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
                 )
-            if self.single_quote_re.search(text):
+            if self.single_quote_re.search(cleaned_str):
                 self.add_error(
                     node,
                     "TE03",
                     "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
                 )
-            if self.double_quote_re.search(text):
+            if self.double_quote_re.search(cleaned_str):
                 self.add_error(
                     node,
                     "TE04",
