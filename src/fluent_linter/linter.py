@@ -9,6 +9,7 @@ import argparse
 import os
 import bisect
 from fluent.syntax import parse, visitor
+from fluent_linter import version
 import re
 import sys
 import yaml
@@ -378,6 +379,7 @@ def lint(root_folder, config_path):
     # Get list of FTL files
     root_folder = os.path.abspath(root_folder)
     files = get_file_list(root_folder)
+    print(f"Files analyzed: {len(files)}.")
 
     # Get config, including exclusions
     if config_path:
@@ -442,6 +444,12 @@ def main():
     parser.add_argument(
         "--config",
         help="Path to config file. If not provided, it will be searched in the same path of the script",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="moz-fluent-linter version: " + version,
+        help="Only print the current version of the program",
     )
     args = parser.parse_args()
 
