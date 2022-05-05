@@ -400,6 +400,16 @@ def lint(root_folder, config_path):
     results = []
     for path in files:
         path = os.path.join(root_folder, path)
+        # Ensure that the file has an empty line at the end
+        with open(path, "r", encoding="utf-8") as f:
+            last_line = f.readlines()[-1]
+            if last_line == last_line.rstrip():
+                error_msg = f"""
+            File path: {path}
+            Error (MI02): Missing empty line at the end of the file"""
+                results.append(error_msg)
+
+        # Lint the content
         contents = open(path, "r", encoding="utf-8").read()
         linter = Linter(
             path, root_folder, config, contents, get_offsets_and_lines(contents)
@@ -442,3 +452,7 @@ def main():
         sys.exit(1)
     else:
         print("No errors found.")
+
+
+if __name__ == "__main__":
+    main()
