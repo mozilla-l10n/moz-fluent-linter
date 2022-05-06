@@ -9,6 +9,7 @@ import argparse
 import os
 import bisect
 from fluent.syntax import parse, visitor
+from fluent.syntax import serializer
 from fluent_linter import version
 import re
 import sys
@@ -17,19 +18,19 @@ import yaml
 from html.parser import HTMLParser
 
 
-class TextElementHTMLParser(HTMLParser):
-    """HTML Parser for TextElement.
-
-    TextElements may contain embedded html tags, which can include
-    quotes in attributes. We only want to check the actual text.
-    """
-
+class MLStripper(HTMLParser):
     def __init__(self):
         super().__init__()
-        self.extracted_text = []
+        self.reset()
+        self.strict = False
+        self.convert_charrefs = True
+        self.fed = []
 
-    def handle_data(self, data):
-        self.extracted_text.append(data)
+    def handle_data(self, d):
+        self.fed.append(d)
+
+    def get_data(self):
+        return " ".join(self.fed)
 
 
 class Linter(visitor.Visitor):
@@ -71,6 +72,68 @@ class Linter(visitor.Visitor):
         # Set this to true to debug print the root node's json. This is useful for
         # writing new lint rules, or debugging existing ones.
         self.debug_print_json = False
+
+    def check_typography(self, node):
+        def exclude_string(id, node):
+            if (
+                id in self.config
+                and node.id.name in self.config[id]["exclusions"]["messages"]
+            ):
+                return True
+
+            return False
+
+        # Serialize message without comments
+        parts = []
+        parts.append(f"{node.id.name} =")
+        if node.value:
+            parts.append(serializer.serialize_pattern(node.value))
+        if node.attributes:
+            for attribute in node.attributes:
+                parts.append(serializer.serialize_attribute(attribute))
+        parts.append("\n")
+
+        # Analyze message for issues with quotes, after removing HTML markup
+        html_stripper = MLStripper()
+        html_stripper.feed("".join(parts))
+        cleaned_str = html_stripper.get_data()
+
+        if self.apostrophe_re.search(cleaned_str):
+            if not exclude_string("TE01", node):
+                self.add_error(
+                    node,
+                    "TE01",
+                    "Strings with apostrophes should use foo\u2019s instead of foo's.",
+                )
+        if self.incorrect_apostrophe_re.search(cleaned_str):
+            if not exclude_string("TE02", node):
+                self.add_error(
+                    node,
+                    "TE02",
+                    "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
+                )
+        if self.single_quote_re.search(cleaned_str):
+            if not exclude_string("TE03", node):
+                self.add_error(
+                    node,
+                    "TE03",
+                    "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
+                )
+        if self.double_quote_re.search(cleaned_str):
+            if not exclude_string("TE04", node):
+                self.add_error(
+                    node,
+                    "TE04",
+                    'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
+                )
+        if self.ellipsis_re.search(cleaned_str):
+            if not exclude_string("TE05", node):
+                self.add_error(
+                    node,
+                    "TE05",
+                    "Strings with an ellipsis should use the Unicode \u2026 character"
+                    " instead of three periods",
+                )
 
     def generic_visit(self, node):
         node_name = type(node).__name__
@@ -132,6 +195,9 @@ class Linter(visitor.Visitor):
         else:
             self.ids.append(node.id.name)
 
+        # Check typography
+        self.check_typography(node)
+
         super().generic_visit(node)
 
     def visit_MessageReference(self, node):
@@ -174,45 +240,6 @@ class Linter(visitor.Visitor):
                 "ID02",
                 f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
             )
-
-    def visit_TextElement(self, node):
-        parser = TextElementHTMLParser()
-        parser.feed(node.value)
-        for text in parser.extracted_text:
-            # To check for apostrophes, first remove pairs of straigh quotes
-            # (single or double) used as delimiters.
-            cleaned_str = node.value.strip('"').strip("'")
-            if self.apostrophe_re.search(cleaned_str):
-                self.add_error(
-                    node,
-                    "TE01",
-                    "Strings with apostrophes should use foo\u2019s instead of foo's.",
-                )
-            if self.incorrect_apostrophe_re.search(text):
-                self.add_error(
-                    node,
-                    "TE02",
-                    "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
-                )
-            if self.single_quote_re.search(cleaned_str):
-                self.add_error(
-                    node,
-                    "TE03",
-                    "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
-                )
-            if self.double_quote_re.search(cleaned_str):
-                self.add_error(
-                    node,
-                    "TE04",
-                    'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
-                )
-            if self.ellipsis_re.search(text):
-                self.add_error(
-                    node,
-                    "TE05",
-                    "Strings with an ellipsis should use the Unicode \u2026 character"
-                    " instead of three periods",
-                )
 
     def visit_ResourceComment(self, node):
         # This node is a comment with: "###"
