@@ -313,6 +313,11 @@ class Linter(visitor.Visitor):
     def visit_VariableReference(self, node):
         # We don't recurse into variable references, the identifiers there are
         # allowed to be free form.
+
+        # Log errors if variable references are not supported
+        if "SY06" in self.config and self.config["SY06"]["disabled"]:
+            self.add_error(node, "SY06", "Variable references are not supported.")
+
         pass
 
     def add_error(self, node, rule, msg):
@@ -332,6 +337,12 @@ class Linter(visitor.Visitor):
             col = span.start - self.offsets_and_lines[i - 1][0]
         else:
             col = 1 + span.start
+
+        # Avoid issues when file doesn't have a new line at the end, and
+        # the last string has attributes
+        if i >= len(self.offsets_and_lines):
+            i -= 1
+
         return (col, self.offsets_and_lines[i][1])
 
 
