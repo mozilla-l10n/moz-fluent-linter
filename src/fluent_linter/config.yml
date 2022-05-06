@@ -5,7 +5,21 @@
 # ID checks
 # ID01: check that identifiers only use lowercase and hyphens
 # ID02: check that identifiers have a minimum length
+
+# Typography checks
 #
+# TE01: single quote instead of apostrophe (foo's)
+# TE02: wrong apostrophe (foo‘s)
+# TE03: single quotes ('foo')
+# TE04: single double quotes ("foo")
+# TE05: 3 dots for ellipsis ("...")
+#
+# Only accepts exceptions per string, not file
+# Example:
+# TE01:
+#     exclusions:
+#         files: []
+
 # Syntax checks
 #
 # Specify if syntax features are disabled. If the config is missing, it
