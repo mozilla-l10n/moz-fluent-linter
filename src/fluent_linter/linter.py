@@ -385,12 +385,15 @@ def get_newlines_count_before(span, contents):
     return count
 
 
-def lint(root_folder, config_path):
+def lint(file_paths, config_path):
 
     # Get list of FTL files
-    root_folder = os.path.abspath(root_folder)
-    files = get_file_list(root_folder)
-    print(f"Files analyzed: {len(files)}.")
+    files = {}
+    total_files = 0
+    for fp in file_paths:
+        files[fp] = get_file_list(os.path.abspath(fp))
+        total_files += len(files[fp])
+    print(f"Files to analyze: {total_files}.")
 
     # Get config, including exclusions
     if config_path:
@@ -411,24 +414,26 @@ def lint(root_folder, config_path):
         config = {}
 
     results = []
-    for path in files:
-        path = os.path.join(root_folder, path)
-        # Ensure that the file has an empty line at the end
-        with open(path, "r", encoding="utf-8") as f:
-            last_line = f.readlines()[-1]
-            if last_line == last_line.rstrip():
-                error_msg = f"""
-            File path: {path}
+    for root_folder, paths in files.items():
+        for path in paths:
+            # Ensure that the file has an empty line at the end
+            with open(path, "r", encoding="utf-8") as f:
+                last_line = f.readlines()[-1]
+                if last_line == last_line.rstrip():
+                    rel_path = os.path.relpath(path, root_folder)
+                    error_msg = f"""
+            File path: {rel_path}
             Error (MI02): Missing empty line at the end of the file"""
-                results.append(error_msg)
+                    results.append(error_msg)
 
-        # Lint the content
-        contents = open(path, "r", encoding="utf-8").read()
-        linter = Linter(
-            path, root_folder, config, contents, get_offsets_and_lines(contents)
-        )
-        linter.visit(parse(contents))
-        results.extend(linter.results)
+                # Reset position after reading the whole content and lint
+                f.seek(0)
+                contents = f.read()
+                linter = Linter(
+                    path, root_folder, config, contents, get_offsets_and_lines(contents)
+                )
+                linter.visit(parse(contents))
+                results.extend(linter.results)
 
     return results
 
@@ -450,7 +455,9 @@ def main():
     # Read command line input parameters
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "files_path", help="Path to root folder with FTL files for reference locale"
+        "files_paths",
+        help="Path(s) to root folder with FTL files for reference locale (accept multiple values)",
+        nargs="+",
     )
     parser.add_argument(
         "--config",
@@ -459,12 +466,12 @@ def main():
     parser.add_argument(
         "--version",
         action="version",
-        version="moz-fluent-linter version: " + version,
         help="Only print the current version of the program",
+        version="moz-fluent-linter version: " + version,
     )
     args = parser.parse_args()
 
-    results = lint(args.files_path, args.config)
+    results = lint(args.files_paths, args.config)
     if results:
         for r in results:
             print(r)
