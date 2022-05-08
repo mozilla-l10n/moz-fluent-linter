@@ -1,4 +1,4 @@
-name: Lint Python
+name: Python Linter
 on:
   push:
   pull_request:
