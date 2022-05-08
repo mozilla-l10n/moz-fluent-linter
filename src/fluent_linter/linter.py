@@ -5,17 +5,20 @@
 # This script is largely based on the Fluent Linter used in mozilla-central
 # https://firefox-source-docs.mozilla.org/code-quality/lint/linters/fluent-lint.html
 
-import argparse
-import os
-import bisect
 from fluent.syntax import parse, visitor
 from fluent.syntax import serializer
-from fluent_linter import version
+from html.parser import HTMLParser
+import argparse
+import bisect
+import os
 import re
 import sys
 import yaml
 
-from html.parser import HTMLParser
+try:
+    from fluent_linter import version
+except:
+    version = "--"
 
 
 class MLStripper(HTMLParser):
