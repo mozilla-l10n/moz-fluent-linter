@@ -8,8 +8,8 @@
 
 # Typography checks
 #
-# TE01: single quote instead of apostrophe (foo's)
-# TE02: wrong apostrophe (foo‘s)
+# TE01: single quote instead of apostrophe for genitive (foo's)
+# TE02: wrong apostrophe for genitive (foo‘s)
 # TE03: single quotes ('foo')
 # TE04: single double quotes ("foo")
 # TE05: 3 dots for ellipsis ("...")
@@ -18,7 +18,7 @@
 # Example:
 # TE01:
 #     exclusions:
-#         files: []
+#         messages: []
 
 # Syntax checks
 #
