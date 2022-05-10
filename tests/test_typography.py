@@ -94,6 +94,8 @@ foo = bar 'bar' bar
     def testTE04(self):
         content = """
 foo = bar "bar" bar
+# This shouldn't trigger an error
+foo1 = { -someterm(capitalization: "uppercase") }
 """
         l = linter.Linter(
             "path", "root", {}, content, linter.get_offsets_and_lines(content)
