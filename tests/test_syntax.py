@@ -4,16 +4,20 @@ from fluent.syntax import parse
 
 
 class TestSyntax(unittest.TestCase):
+    def checkContent(self, config, content):
+        l = linter.Linter(
+            "path", "root", config, content, linter.get_offsets_and_lines(content)
+        )
+        l.visit(parse(content))
+
+        return l.results
+
     def testSY01(self):
         content = """
 -foo = bar
 """
         config = {"SY01": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY01" in results[0])
 
@@ -22,11 +26,7 @@ class TestSyntax(unittest.TestCase):
 foo = { foo1 }
 """
         config = {"SY02": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY02" in results[0])
 
@@ -35,11 +35,7 @@ foo = { foo1 }
 foo = { -foo1 }
 """
         config = {"SY03": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY03" in results[0])
 
@@ -51,11 +47,7 @@ foo = { $x ->
 }
 """
         config = {"SY04": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY04" in results[0])
 
@@ -65,11 +57,7 @@ foo = bar
     .test = bar 1
 """
         config = {"SY05": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY05" in results[0])
 
@@ -78,10 +66,6 @@ foo = bar
 foo = { $foovar }
 """
         config = {"SY06": {"disabled": True}}
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY06" in results[0])
