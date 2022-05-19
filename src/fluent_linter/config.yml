@@ -36,6 +36,18 @@
 # SY05: attributes
 # SY06: variable references
 
+# Comments
+#
+# Specify if checks for group and section comments are disabled. If the config
+# is missing, it will considered as enabled.
+#
+# Example:
+# GC:
+#     disabled: true
+#
+# GC: group comments
+# RC: resource comments
+
 ---
 ID01:
     enabled: false

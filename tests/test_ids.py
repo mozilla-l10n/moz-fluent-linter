@@ -4,6 +4,14 @@ from fluent.syntax import parse
 
 
 class TestIDs(unittest.TestCase):
+    def checkContent(self, path, root, config, content):
+        l = linter.Linter(
+            path, root, config, content, linter.get_offsets_and_lines(content)
+        )
+        l.visit(parse(content))
+
+        return l.results
+
     def testID01(self):
         content = """
 foo = bar
@@ -28,19 +36,11 @@ foo_Test-ex = bar
             }
         }
 
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent("path", "root", config, content)
         self.assertEqual(len(results), 5)
 
         # Test file exclusion
-        l = linter.Linter(
-            "path/foo", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent("path/foo", "root", config, content)
         self.assertEqual(len(results), 0)
 
     def testID02(self):
@@ -63,17 +63,9 @@ foo1= bar
             }
         }
 
-        l = linter.Linter(
-            "path", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent("path", "root", config, content)
         self.assertEqual(len(results), 2)
 
         # Test file exclusion
-        l = linter.Linter(
-            "path/foo", "root", config, content, linter.get_offsets_and_lines(content)
-        )
-        l.visit(parse(content))
-        results = l.results
+        results = self.checkContent("path/foo", "root", config, content)
         self.assertEqual(len(results), 0)

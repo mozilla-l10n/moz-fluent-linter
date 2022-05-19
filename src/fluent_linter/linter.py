@@ -253,6 +253,11 @@ class Linter(visitor.Visitor):
 
     def visit_ResourceComment(self, node):
         # This node is a comment with: "###"
+
+        # Skip if checks for group comments are disabled
+        if "RC" in self.config and self.config["RC"]["disabled"]:
+            return
+
         if not self.state["node_can_be_resource_comment"]:
             self.add_error(
                 node,
@@ -299,6 +304,10 @@ class Linter(visitor.Visitor):
 
     def visit_GroupComment(self, node):
         # This node is a comment with: "##"
+
+        # Skip if checks for group comments are disabled
+        if "GC" in self.config and self.config["GC"]["disabled"]:
+            return
 
         if not self.state["can_have_group_comment"]:
             self.add_error(
