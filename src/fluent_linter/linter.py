@@ -17,7 +17,7 @@ import yaml
 
 try:
     from fluent_linter import version
-except:
+except Exception:
     version = "--"
 
 
