@@ -63,11 +63,18 @@ class Linter(visitor.Visitor):
         self.single_quote_re = re.compile(r"'(.+)'")
         self.double_quote_re = re.compile(r"\".+\"")
         self.ellipsis_re = re.compile(r"\.\.\.")
-        self.parameterized_terms_re = re.compile(
-            r"{\s*[A-Za-z0-9._(:\s-]+\"[A-Za-z0-9]+\"\s*\)\s*}"
-        )
-        # DATETIME() and NUMBER() function
-        self.functions_re = re.compile(r"{\s*(?:DATETIME|NUMBER)(.*)\s*}")
+
+        # Syntax to ignore when checking double quotes
+        self.ftl_syntax_re = [
+            # Parameterized terms
+            re.compile(
+                r'(?<!\{)\{\s*(?:-[A-Za-z0-9._-]+)(?:[\[(]?[A-Za-z0-9_\-, :"]+[\])])*\s*\}'
+            ),
+            # DATETIME() and NUMBER() function
+            re.compile(r"{\s*(?:DATETIME|NUMBER)(.*)\s*}"),
+            # Special characters and empty string
+            re.compile(r'{\s*"(?:[\s{}]{0,1})"\s*}'),
+        ]
         self.ids = []
         self.state = {
             # The resource comment should be at the top of the page after the license.
@@ -129,8 +136,9 @@ class Linter(visitor.Visitor):
                 )
         if self.double_quote_re.search(cleaned_str):
             # Ignore parameterized terms and other functions
-            cleaned_str = self.parameterized_terms_re.sub("", cleaned_str)
-            cleaned_str = self.functions_re.sub("", cleaned_str)
+            for regex in self.ftl_syntax_re:
+                cleaned_str = regex.sub("", cleaned_str)
+
             if self.double_quote_re.search(cleaned_str) and not exclude_string(
                 "TE04", node
             ):

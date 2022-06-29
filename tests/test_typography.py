@@ -74,6 +74,10 @@ foo = bar "bar" bar
 foo1 = { -someterm(capitalization: "uppercase") }
 foo-datetime = Test: { DATETIME($timeChanged, day: "numeric", month: "long", year: "numeric") }
 foo-number = { NUMBER($mem, maxFractionalUnits: 2) } MB
+foo-empty = { "" }
+foo-space = { "" } test
+foo-curly1 = { "{" } test
+foo-curly2 = { "}" } test
 """
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 1)
