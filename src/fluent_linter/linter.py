@@ -66,6 +66,8 @@ class Linter(visitor.Visitor):
         self.parameterized_terms_re = re.compile(
             r"{\s*[A-Za-z0-9._(:\s-]+\"[A-Za-z0-9]+\"\s*\)\s*}"
         )
+        # DATETIME() and NUMBER() function
+        self.functions_re = re.compile(r"{\s*(?:DATETIME|NUMBER)(.*)\s*}")
         self.ids = []
         self.state = {
             # The resource comment should be at the top of the page after the license.
@@ -126,8 +128,9 @@ class Linter(visitor.Visitor):
                     "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
                 )
         if self.double_quote_re.search(cleaned_str):
-            # Ignore parameterized terms
+            # Ignore parameterized terms and other functions
             cleaned_str = self.parameterized_terms_re.sub("", cleaned_str)
+            cleaned_str = self.functions_re.sub("", cleaned_str)
             if self.double_quote_re.search(cleaned_str) and not exclude_string(
                 "TE04", node
             ):

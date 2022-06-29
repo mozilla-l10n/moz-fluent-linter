@@ -72,6 +72,8 @@ foo = bar 'bar' bar
 foo = bar "bar" bar
 # This shouldn't trigger an error
 foo1 = { -someterm(capitalization: "uppercase") }
+foo-datetime = Test: { DATETIME($timeChanged, day: "numeric", month: "long", year: "numeric") }
+foo-number = { NUMBER($mem, maxFractionalUnits: 2) } MB
 """
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 1)
