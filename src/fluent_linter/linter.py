@@ -94,15 +94,22 @@ class Linter(visitor.Visitor):
         # writing new lint rules, or debugging existing ones.
         self.debug_print_json = False
 
-    def check_typography(self, node):
-        def exclude_string(id, node):
-            if (
-                id in self.config
-                and node.id.name in self.config[id]["exclusions"]["messages"]
-            ):
-                return True
+    def exclude_message(self, rule, message_id, filename=None):
+        """Check if message with ID should be ignored"""
 
+        # Rule is not set in config or doesn't have exclusions
+        if rule not in self.config or "exclusions" not in self.config[rule]:
             return False
+
+        rule_exclusions = self.config[rule]["exclusions"]
+        if filename in rule_exclusions.get("files", []):
+            return True
+        if message_id in rule_exclusions.get("messages", []):
+            return True
+
+        return False
+
+    def check_typography(self, node):
 
         # Serialize message without comments
         parts = []
@@ -120,21 +127,21 @@ class Linter(visitor.Visitor):
         cleaned_str = html_stripper.get_data()
 
         if self.apostrophe_re.search(cleaned_str):
-            if not exclude_string("TE01", node):
+            if not self.exclude_message("TE01", node.id.name):
                 self.add_error(
                     node,
                     "TE01",
                     "Strings with apostrophes should use foo\u2019s instead of foo's.",
                 )
         if self.incorrect_apostrophe_re.search(cleaned_str):
-            if not exclude_string("TE02", node):
+            if not self.exclude_message("TE02", node.id.name):
                 self.add_error(
                     node,
                     "TE02",
                     "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
                 )
         if self.single_quote_re.search(cleaned_str):
-            if not exclude_string("TE03", node):
+            if not self.exclude_message("TE03", node.id.name):
                 self.add_error(
                     node,
                     "TE03",
@@ -145,8 +152,8 @@ class Linter(visitor.Visitor):
             for regex in self.ftl_syntax_re:
                 cleaned_str = regex.sub("", cleaned_str)
 
-            if self.double_quote_re.search(cleaned_str) and not exclude_string(
-                "TE04", node
+            if self.double_quote_re.search(cleaned_str) and not self.exclude_message(
+                "TE04", node.id.name
             ):
                 self.add_error(
                     node,
@@ -154,7 +161,7 @@ class Linter(visitor.Visitor):
                     'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
                 )
         if self.ellipsis_re.search(cleaned_str):
-            if not exclude_string("TE05", node):
+            if not self.exclude_message("TE05", node.id.name):
                 self.add_error(
                     node,
                     "TE05",
@@ -228,10 +235,8 @@ class Linter(visitor.Visitor):
         self.message_errors["brands"] = None
         super().generic_visit(node)
 
-        if (
-            self.message_errors["brands"]
-            and self.path not in self.config["CO01"]["exclusions"]["files"]
-            and node.id.name not in self.config["CO01"]["exclusions"]["messages"]
+        if self.message_errors["brands"] and not self.exclude_message(
+            "CO01", node.id.name, self.path
         ):
             self.add_error(
                 # Using the passed node, otherwise the offset would
@@ -269,8 +274,7 @@ class Linter(visitor.Visitor):
         if (
             "ID01" in self.config
             and self.config["ID01"]["enabled"]
-            and self.path not in self.config["ID01"]["exclusions"]["files"]
-            and node.name not in self.config["ID01"]["exclusions"]["messages"]
+            and not self.exclude_message("ID01", node.name, self.path)
             and not self.identifier_re.fullmatch(node.name)
         ):
             self.add_error(
@@ -280,9 +284,8 @@ class Linter(visitor.Visitor):
         if (
             "ID02" in self.config
             and self.config["ID02"]["enabled"]
+            and not self.exclude_message("ID02", node.name, self.path)
             and len(node.name) < self.config["ID02"]["min_length"]
-            and self.path not in self.config["ID02"]["exclusions"]["files"]
-            and node.name not in self.config["ID02"]["exclusions"]["messages"]
         ):
             self.add_error(
                 node,

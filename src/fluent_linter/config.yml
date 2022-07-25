@@ -3,10 +3,20 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 # ID checks
+#
 # ID01: check that identifiers only use lowercase and hyphens
-# ID02: check that identifiers have a minimum length
+# ID02: check that identifiers have a minimum length (specified in min_length
+#       field)
+#
+# Example:
+# ID01:
+#    enabled: true
+#    exclusions:
+#        messages: []
+#        files: []
 
 # Content checks
+#
 # CO01: check for hard-coded brand names
 #
 # Example:
