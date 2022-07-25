@@ -64,6 +64,12 @@ class Linter(visitor.Visitor):
         self.double_quote_re = re.compile(r"\".+\"")
         self.ellipsis_re = re.compile(r"\.\.\.")
 
+        self.message_errors = {}
+        if "CO01" in config and config["CO01"]["enabled"]:
+            self.brand_names = config["CO01"]["brands"]
+        else:
+            self.brand_names = []
+
         # Syntax to ignore when checking double quotes
         self.ftl_syntax_re = [
             # Parameterized terms
@@ -219,7 +225,22 @@ class Linter(visitor.Visitor):
         # Check typography
         self.check_typography(node)
 
+        self.message_errors["brands"] = None
         super().generic_visit(node)
+
+        if (
+            self.message_errors["brands"]
+            and self.path not in self.config["CO01"]["exclusions"]["files"]
+            and node.id.name not in self.config["CO01"]["exclusions"]["messages"]
+        ):
+            self.add_error(
+                # Using the passed node, otherwise the offset would
+                # potentially refers to the comment
+                self.message_errors["brands"],
+                "CO01",
+                "Strings should use the corresponding terms instead of"
+                f" hard-coded brand names ({', '.join(self.brand_names)})",
+            )
 
     def visit_MessageReference(self, node):
         # Log errors if message references are not supported
@@ -236,6 +257,13 @@ class Linter(visitor.Visitor):
         if "SY03" in self.config and self.config["SY03"]["disabled"]:
             self.add_error(node, "SY03", "Terms are not supported.")
         pass
+
+    def visit_TextElement(self, node):
+        html_stripper = MLStripper()
+        html_stripper.feed(node.value)
+        cleaned_str = html_stripper.get_data()
+        if any(brand in cleaned_str for brand in self.brand_names):
+            self.message_errors["brands"] = node
 
     def visit_Identifier(self, node):
         if (
@@ -475,13 +503,15 @@ def lint(file_paths, config_path):
         for path in paths:
             # Ensure that the file has an empty line at the end
             with open(path, "r", encoding="utf-8") as f:
-                last_line = f.readlines()[-1]
-                if last_line == last_line.rstrip():
-                    rel_path = os.path.relpath(path, root_folder)
-                    error_msg = f"""
+                file_content = f.readlines()
+                if len(file_content) > 0:
+                    last_line = file_content[-1]
+                    if last_line == last_line.rstrip():
+                        rel_path = os.path.relpath(path, root_folder)
+                        error_msg = f"""
             File path: {rel_path}
             Error (MI02): Missing empty line at the end of the file"""
-                    results.append(error_msg)
+                        results.append(error_msg)
 
                 # Reset position after reading the whole content and lint
                 f.seek(0)
