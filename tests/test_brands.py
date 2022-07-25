@@ -37,11 +37,6 @@ good-mozilla2 = Welcome to { mozilla-message }
         config = {
             "CO01": {
                 "enabled": False,
-                "brands": [],
-                "exclusions": {
-                    "messages": [],
-                    "files": [],
-                },
             }
         }
         results = self.checkContent(config, content)
@@ -53,7 +48,6 @@ good-mozilla2 = Welcome to { mozilla-message }
                 "brands": ["Firefox", "Mozilla"],
                 "exclusions": {
                     "messages": ["bad-firefox-excluded"],
-                    "files": [],
                 },
             }
         }
@@ -67,7 +61,6 @@ good-mozilla2 = Welcome to { mozilla-message }
                 "enabled": True,
                 "brands": ["Firefox", "Mozilla"],
                 "exclusions": {
-                    "messages": [],
                     "files": ["file.ftl"],
                 },
             }
