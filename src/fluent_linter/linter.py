@@ -64,6 +64,12 @@ class Linter(visitor.Visitor):
         self.double_quote_re = re.compile(r"\".+\"")
         self.ellipsis_re = re.compile(r"\.\.\.")
 
+        self.message_errors = {}
+        if "CO01" in config and config["CO01"]["enabled"]:
+            self.brand_names = config["CO01"]["brands"]
+        else:
+            self.brand_names = []
+
         # Syntax to ignore when checking double quotes
         self.ftl_syntax_re = [
             # Parameterized terms
@@ -88,15 +94,22 @@ class Linter(visitor.Visitor):
         # writing new lint rules, or debugging existing ones.
         self.debug_print_json = False
 
-    def check_typography(self, node):
-        def exclude_string(id, node):
-            if (
-                id in self.config
-                and node.id.name in self.config[id]["exclusions"]["messages"]
-            ):
-                return True
+    def exclude_message(self, rule, message_id, filename=None):
+        """Check if message with ID should be ignored"""
 
+        # Rule is not set in config or doesn't have exclusions
+        if rule not in self.config or "exclusions" not in self.config[rule]:
             return False
+
+        rule_exclusions = self.config[rule]["exclusions"]
+        if filename in rule_exclusions.get("files", []):
+            return True
+        if message_id in rule_exclusions.get("messages", []):
+            return True
+
+        return False
+
+    def check_typography(self, node):
 
         # Serialize message without comments
         parts = []
@@ -114,21 +127,21 @@ class Linter(visitor.Visitor):
         cleaned_str = html_stripper.get_data()
 
         if self.apostrophe_re.search(cleaned_str):
-            if not exclude_string("TE01", node):
+            if not self.exclude_message("TE01", node.id.name):
                 self.add_error(
                     node,
                     "TE01",
                     "Strings with apostrophes should use foo\u2019s instead of foo's.",
                 )
         if self.incorrect_apostrophe_re.search(cleaned_str):
-            if not exclude_string("TE02", node):
+            if not self.exclude_message("TE02", node.id.name):
                 self.add_error(
                     node,
                     "TE02",
                     "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
                 )
         if self.single_quote_re.search(cleaned_str):
-            if not exclude_string("TE03", node):
+            if not self.exclude_message("TE03", node.id.name):
                 self.add_error(
                     node,
                     "TE03",
@@ -139,8 +152,8 @@ class Linter(visitor.Visitor):
             for regex in self.ftl_syntax_re:
                 cleaned_str = regex.sub("", cleaned_str)
 
-            if self.double_quote_re.search(cleaned_str) and not exclude_string(
-                "TE04", node
+            if self.double_quote_re.search(cleaned_str) and not self.exclude_message(
+                "TE04", node.id.name
             ):
                 self.add_error(
                     node,
@@ -148,7 +161,7 @@ class Linter(visitor.Visitor):
                     'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
                 )
         if self.ellipsis_re.search(cleaned_str):
-            if not exclude_string("TE05", node):
+            if not self.exclude_message("TE05", node.id.name):
                 self.add_error(
                     node,
                     "TE05",
@@ -219,7 +232,20 @@ class Linter(visitor.Visitor):
         # Check typography
         self.check_typography(node)
 
+        self.message_errors["brands"] = None
         super().generic_visit(node)
+
+        if self.message_errors["brands"] and not self.exclude_message(
+            "CO01", node.id.name, self.path
+        ):
+            self.add_error(
+                # Using the passed node, otherwise the offset would
+                # potentially refer to the comment
+                self.message_errors["brands"],
+                "CO01",
+                "Strings should use the corresponding terms instead of"
+                f" hard-coded brand names ({', '.join(self.brand_names)})",
+            )
 
     def visit_MessageReference(self, node):
         # Log errors if message references are not supported
@@ -237,12 +263,18 @@ class Linter(visitor.Visitor):
             self.add_error(node, "SY03", "Terms are not supported.")
         pass
 
+    def visit_TextElement(self, node):
+        html_stripper = MLStripper()
+        html_stripper.feed(node.value)
+        cleaned_str = html_stripper.get_data()
+        if any(brand in cleaned_str for brand in self.brand_names):
+            self.message_errors["brands"] = node
+
     def visit_Identifier(self, node):
         if (
             "ID01" in self.config
             and self.config["ID01"]["enabled"]
-            and self.path not in self.config["ID01"]["exclusions"]["files"]
-            and node.name not in self.config["ID01"]["exclusions"]["messages"]
+            and not self.exclude_message("ID01", node.name, self.path)
             and not self.identifier_re.fullmatch(node.name)
         ):
             self.add_error(
@@ -252,9 +284,8 @@ class Linter(visitor.Visitor):
         if (
             "ID02" in self.config
             and self.config["ID02"]["enabled"]
+            and not self.exclude_message("ID02", node.name, self.path)
             and len(node.name) < self.config["ID02"]["min_length"]
-            and self.path not in self.config["ID02"]["exclusions"]["files"]
-            and node.name not in self.config["ID02"]["exclusions"]["messages"]
         ):
             self.add_error(
                 node,
@@ -475,13 +506,15 @@ def lint(file_paths, config_path):
         for path in paths:
             # Ensure that the file has an empty line at the end
             with open(path, "r", encoding="utf-8") as f:
-                last_line = f.readlines()[-1]
-                if last_line == last_line.rstrip():
-                    rel_path = os.path.relpath(path, root_folder)
-                    error_msg = f"""
+                file_content = f.readlines()
+                if len(file_content) > 0:
+                    last_line = file_content[-1]
+                    if last_line == last_line.rstrip():
+                        rel_path = os.path.relpath(path, root_folder)
+                        error_msg = f"""
             File path: {rel_path}
             Error (MI02): Missing empty line at the end of the file"""
-                    results.append(error_msg)
+                        results.append(error_msg)
 
                 # Reset position after reading the whole content and lint
                 f.seek(0)
