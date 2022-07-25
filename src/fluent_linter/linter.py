@@ -240,7 +240,7 @@ class Linter(visitor.Visitor):
         ):
             self.add_error(
                 # Using the passed node, otherwise the offset would
-                # potentially refers to the comment
+                # potentially refer to the comment
                 self.message_errors["brands"],
                 "CO01",
                 "Strings should use the corresponding terms instead of"
