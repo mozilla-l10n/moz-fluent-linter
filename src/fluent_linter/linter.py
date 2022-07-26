@@ -66,7 +66,7 @@ class Linter(visitor.Visitor):
 
         self.message_errors = {}
         if "CO01" in config and config["CO01"]["enabled"]:
-            self.brand_names = config["CO01"]["brands"]
+            self.brand_names = config["CO01"].get("brands", [])
         else:
             self.brand_names = []
         if "CO02" in config and config["CO02"]["enabled"]:
@@ -241,28 +241,28 @@ class Linter(visitor.Visitor):
         self.message_errors["banned_words"] = None
         super().generic_visit(node)
 
-        if self.message_errors["brands"] and not self.exclude_message(
+        if self.message_errors["brands"] is not None and not self.exclude_message(
             "CO01", node.id.name, self.path
         ):
             self.add_error(
                 # Using the passed node, otherwise the offset would
                 # potentially refer to the comment
-                self.message_errors["brands"],
+                self.message_errors["brands"]["node"],
                 "CO01",
                 "Strings should use the corresponding terms instead of"
-                f" hard-coded brand names ({', '.join(self.brand_names)})",
+                f" hard-coded brand names ({self.message_errors['brands']['matches']})",
             )
 
-        if self.message_errors["banned_words"] and not self.exclude_message(
+        if self.message_errors["banned_words"] is not None and not self.exclude_message(
             "CO02", node.id.name, self.path
         ):
             self.add_error(
                 # Using the passed node, otherwise the offset would
                 # potentially refer to the comment
-                self.message_errors["banned_words"],
+                self.message_errors["banned_words"]["node"],
                 "CO02",
                 f"Strings should use banned words"
-                f" hard-coded brand names ({', '.join(self.banned_words)})",
+                f" hard-coded brand names ({self.message_errors['banned_words']['matches']})",
             )
 
     def visit_MessageReference(self, node):
@@ -285,10 +285,26 @@ class Linter(visitor.Visitor):
         html_stripper = MLStripper()
         html_stripper.feed(node.value)
         cleaned_str = html_stripper.get_data()
-        if any(brand in cleaned_str for brand in self.brand_names):
-            self.message_errors["brands"] = node
-        if any(word in cleaned_str.lower() for word in self.banned_words):
-            self.message_errors["banned_words"] = node
+
+        found_brands = []
+        for brand in self.brand_names:
+            if brand in cleaned_str:
+                found_brands.append(brand)
+        if found_brands:
+            self.message_errors["brands"] = {
+                "node": node,
+                "matches": ", ".join(found_brands),
+            }
+
+        found_banned_words = []
+        for word in self.banned_words:
+            if word in cleaned_str.lower():
+                found_banned_words.append(word)
+        if found_banned_words:
+            self.message_errors["banned_words"] = {
+                "node": node,
+                "matches": ", ".join(found_banned_words),
+            }
 
     def visit_Identifier(self, node):
         if (
