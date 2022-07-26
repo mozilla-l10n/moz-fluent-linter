@@ -64,7 +64,6 @@ class Linter(visitor.Visitor):
         self.double_quote_re = re.compile(r"\".+\"")
         self.ellipsis_re = re.compile(r"\.\.\.")
 
-        self.message_errors = {}
         if "CO01" in config and config["CO01"]["enabled"]:
             self.brand_names = config["CO01"].get("brands", [])
         else:
@@ -221,6 +220,7 @@ class Linter(visitor.Visitor):
         self.state["is_term"] = True
         # There must be at least one message or term between group comments.
         self.state["can_have_group_comment"] = True
+        self.last_message_id = None
 
         # Log errors if terms are not supported
         if "SY01" in self.config and self.config["SY01"]["disabled"]:
@@ -232,6 +232,7 @@ class Linter(visitor.Visitor):
         self.state["is_term"] = False
         # There must be at least one message or term between group comments.
         self.state["can_have_group_comment"] = True
+        self.last_message_id = node.id.name
 
         # Check for duplicates
         if node.id.name in self.ids:
@@ -247,35 +248,7 @@ class Linter(visitor.Visitor):
         # Check typography
         self.check_typography(node)
 
-        self.message_errors["brands"] = None
-        self.message_errors["banned_words"] = None
         super().generic_visit(node)
-
-        if self.message_errors["brands"] is not None and not self.exclude_message(
-            "CO01", node.id.name, self.path
-        ):
-            self.add_error(
-                # Using the passed node, otherwise the offset would
-                # potentially refer to the comment
-                self.message_errors["brands"]["node"],
-                node.id.name,
-                "CO01",
-                "Strings should use the corresponding terms instead of"
-                f" hard-coded brand names ({self.message_errors['brands']['matches']})",
-            )
-
-        if self.message_errors["banned_words"] is not None and not self.exclude_message(
-            "CO02", node.id.name, self.path
-        ):
-            self.add_error(
-                # Using the passed node, otherwise the offset would
-                # potentially refer to the comment
-                self.message_errors["banned_words"]["node"],
-                node.id.name,
-                "CO02",
-                f"Strings should not include banned words"
-                f" ({self.message_errors['banned_words']['matches']})",
-            )
 
     def visit_MessageReference(self, node):
         # Log errors if message references are not supported
@@ -298,26 +271,40 @@ class Linter(visitor.Visitor):
         html_stripper.feed(node.value)
         cleaned_str = html_stripper.get_data()
 
-        found_brands = []
-        for brand in self.brand_names:
-            if brand in cleaned_str:
-                found_brands.append(brand)
-        if found_brands:
-            self.message_errors["brands"] = {
-                "node": node,
-                "matches": ", ".join(found_brands),
-            }
+        # If part of a message, check for brand and banned words
+        message_id = self.last_message_id
+        if message_id is not None and not self.exclude_message(
+            "CO01", message_id, self.path
+        ):
+            found_brands = []
+            for brand in self.brand_names:
+                if brand in cleaned_str:
+                    found_brands.append(brand)
+            if found_brands:
+                self.add_error(
+                    node,
+                    message_id,
+                    "CO01",
+                    "Strings should use the corresponding terms instead of"
+                    f" hard-coded brand names ({', '.join(found_brands)})",
+                )
 
-        found_banned_words = []
-        for word in self.banned_words:
-            brand_re = re.compile(r"\b" + word + r"\b")
-            if brand_re.search(cleaned_str.lower()):
-                found_banned_words.append(word)
-        if found_banned_words:
-            self.message_errors["banned_words"] = {
-                "node": node,
-                "matches": ", ".join(found_banned_words),
-            }
+        if message_id is not None and not self.exclude_message(
+            "CO02", message_id, self.path
+        ):
+            found_banned_words = []
+            for word in self.banned_words:
+                brand_re = re.compile(r"\b" + word + r"\b")
+                if brand_re.search(cleaned_str.lower()):
+                    found_banned_words.append(word)
+            if found_banned_words:
+                self.add_error(
+                    node,
+                    message_id,
+                    "CO02",
+                    "Strings should not include banned words"
+                    f" ({', '.join(found_banned_words)})",
+                )
 
     def visit_Identifier(self, node):
         message_id = f"-{node.name}" if self.state["is_term"] else node.name
