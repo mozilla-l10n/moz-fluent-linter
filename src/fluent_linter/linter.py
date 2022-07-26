@@ -261,8 +261,8 @@ class Linter(visitor.Visitor):
                 # potentially refer to the comment
                 self.message_errors["banned_words"]["node"],
                 "CO02",
-                f"Strings should use banned words"
-                f" hard-coded brand names ({self.message_errors['banned_words']['matches']})",
+                f"Strings should not include use banned words"
+                f" ({self.message_errors['banned_words']['matches']})",
             )
 
     def visit_MessageReference(self, node):
