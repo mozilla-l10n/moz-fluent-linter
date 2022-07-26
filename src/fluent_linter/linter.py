@@ -273,7 +273,7 @@ class Linter(visitor.Visitor):
                 self.message_errors["banned_words"]["node"],
                 node.id.name,
                 "CO02",
-                f"Strings should not include use banned words"
+                f"Strings should not include banned words"
                 f" ({self.message_errors['banned_words']['matches']})",
             )
 
