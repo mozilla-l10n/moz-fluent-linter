@@ -69,6 +69,11 @@ class Linter(visitor.Visitor):
             self.brand_names = config["CO01"]["brands"]
         else:
             self.brand_names = []
+        if "CO02" in config and config["CO02"]["enabled"]:
+            # Transform lowercase
+            self.banned_words = [word.lower() for word in config["CO02"]["words"]]
+        else:
+            self.banned_words = []
 
         # Syntax to ignore when checking double quotes
         self.ftl_syntax_re = [
@@ -233,6 +238,7 @@ class Linter(visitor.Visitor):
         self.check_typography(node)
 
         self.message_errors["brands"] = None
+        self.message_errors["banned_words"] = None
         super().generic_visit(node)
 
         if self.message_errors["brands"] and not self.exclude_message(
@@ -245,6 +251,18 @@ class Linter(visitor.Visitor):
                 "CO01",
                 "Strings should use the corresponding terms instead of"
                 f" hard-coded brand names ({', '.join(self.brand_names)})",
+            )
+
+        if self.message_errors["banned_words"] and not self.exclude_message(
+            "CO02", node.id.name, self.path
+        ):
+            self.add_error(
+                # Using the passed node, otherwise the offset would
+                # potentially refer to the comment
+                self.message_errors["banned_words"],
+                "CO02",
+                f"Strings should use banned words"
+                f" hard-coded brand names ({', '.join(self.banned_words)})",
             )
 
     def visit_MessageReference(self, node):
@@ -269,6 +287,8 @@ class Linter(visitor.Visitor):
         cleaned_str = html_stripper.get_data()
         if any(brand in cleaned_str for brand in self.brand_names):
             self.message_errors["brands"] = node
+        if any(word in cleaned_str.lower() for word in self.banned_words):
+            self.message_errors["banned_words"] = node
 
     def visit_Identifier(self, node):
         if (

@@ -26,6 +26,16 @@
 #    exclusions:
 #        messages: []
 #        files: []
+#
+# CO02: check for prohibited words. Checks are case insensitive.
+#
+# Example:
+# CO02:
+#    enabled: false
+#    words: []
+#    exclusions:
+#        messages: []
+#        files: []
 
 # Typography checks
 #
