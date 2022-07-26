@@ -48,6 +48,7 @@ excluded_sentence2 = This is a <b>black list</b>
         self.assertEqual(len(results), 6)
         self.assertTrue("CO02" in results[0])
         self.assertTrue("line 5" in results[1])
+        self.assertTrue("excluded-word2" in results[1])
         self.assertTrue("alias" in results[0])
         self.assertTrue("black list" in results[5])
 

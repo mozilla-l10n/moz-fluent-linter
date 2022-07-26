@@ -56,6 +56,7 @@ good-mozilla2 = Welcome to { mozilla-message }
         self.assertTrue("CO01" in results[0])
         self.assertTrue("Firefox" in results[0])
         self.assertTrue("line 5" in results[1])
+        self.assertTrue("bad-firefox2" in results[1])
         self.assertTrue("Mozilla" in results[5])
 
         config = {

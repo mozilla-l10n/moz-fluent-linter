@@ -19,6 +19,7 @@ foo = bar's bar
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("TE01" in results[0])
+        self.assertTrue("foo" in results[0])
 
         # Check exclusions
         config = {"TE01": {"exclusions": {"messages": ["foo"]}}}
@@ -38,6 +39,7 @@ foo = bar‘s bar
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("TE02" in results[0])
+        self.assertTrue("foo" in results[0])
 
         # Check exclusions
         config = {"TE02": {"exclusions": {"messages": ["foo"]}}}
@@ -58,6 +60,7 @@ foo = bar 'bar' bar
         self.assertEqual(len(results), 2)
         self.assertTrue("TE01" in results[0])
         self.assertTrue("TE03" in results[1])
+        self.assertTrue("foo" in results[0])
 
         # Check exclusions
         config = {
@@ -82,6 +85,7 @@ foo-curly2 = { "}" } test
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("TE04" in results[0])
+        self.assertTrue("foo" in results[0])
 
         # Check exclusions
         config = {"TE04": {"exclusions": {"messages": ["foo"]}}}

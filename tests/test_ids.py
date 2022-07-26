@@ -37,7 +37,8 @@ foo_Test-ex = bar
         }
 
         results = self.checkContent("path", "root", config, content)
-        self.assertEqual(len(results), 5)
+        self.assertTrue("fooTest" in results[0])
+        self.assertTrue("-fooTerm" in results[1])
 
         # Test file exclusion
         results = self.checkContent("path/foo", "root", config, content)
@@ -65,6 +66,7 @@ foo1= bar
 
         results = self.checkContent("path", "root", config, content)
         self.assertEqual(len(results), 2)
+        self.assertTrue("foo" in results[0])
 
         # Test file exclusion
         results = self.checkContent("path/foo", "root", config, content)
