@@ -93,6 +93,8 @@ class Linter(visitor.Visitor):
             # Group comments must be followed by a message. Two group comments are not
             # allowed in a row.
             "can_have_group_comment": True,
+            # If currently looking at a term
+            "is_term": False,
         }
 
         # Set this to true to debug print the root node's json. This is useful for
@@ -135,6 +137,7 @@ class Linter(visitor.Visitor):
             if not self.exclude_message("TE01", node.id.name):
                 self.add_error(
                     node,
+                    node.id.name,
                     "TE01",
                     "Strings with apostrophes should use foo\u2019s instead of foo's.",
                 )
@@ -142,6 +145,7 @@ class Linter(visitor.Visitor):
             if not self.exclude_message("TE02", node.id.name):
                 self.add_error(
                     node,
+                    node.id.name,
                     "TE02",
                     "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
                 )
@@ -149,6 +153,7 @@ class Linter(visitor.Visitor):
             if not self.exclude_message("TE03", node.id.name):
                 self.add_error(
                     node,
+                    node.id.name,
                     "TE03",
                     "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
                 )
@@ -162,6 +167,7 @@ class Linter(visitor.Visitor):
             ):
                 self.add_error(
                     node,
+                    node.id.name,
                     "TE04",
                     'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
                 )
@@ -169,6 +175,7 @@ class Linter(visitor.Visitor):
             if not self.exclude_message("TE05", node.id.name):
                 self.add_error(
                     node,
+                    node.id.name,
                     "TE05",
                     "Strings with an ellipsis should use the Unicode \u2026 character"
                     " instead of three periods",
@@ -199,7 +206,7 @@ class Linter(visitor.Visitor):
     def visit_Attribute(self, node):
         # Log errors if attributes are not supported
         if "SY05" in self.config and self.config["SY05"]["disabled"]:
-            self.add_error(node, "SY05", "Attributes are not supported.")
+            self.add_error(node, None, "SY05", "Attributes are not supported.")
             pass
         else:
             # Only visit values for Attribute nodes, the identifier comes from dom.
@@ -211,16 +218,18 @@ class Linter(visitor.Visitor):
         pass
 
     def visit_Term(self, node):
+        self.state["is_term"] = True
         # There must be at least one message or term between group comments.
         self.state["can_have_group_comment"] = True
 
         # Log errors if terms are not supported
         if "SY01" in self.config and self.config["SY01"]["disabled"]:
-            self.add_error(node, "SY01", "Terms are not supported.")
+            self.add_error(node, node.id, "SY01", "Terms are not supported.")
 
         super().generic_visit(node)
 
     def visit_Message(self, node):
+        self.state["is_term"] = False
         # There must be at least one message or term between group comments.
         self.state["can_have_group_comment"] = True
 
@@ -228,6 +237,7 @@ class Linter(visitor.Visitor):
         if node.id.name in self.ids:
             self.add_error(
                 node,
+                node.id.name,
                 "MI01",
                 f"Identifier {node.id.name} is present more than once in the file.",
             )
@@ -248,6 +258,7 @@ class Linter(visitor.Visitor):
                 # Using the passed node, otherwise the offset would
                 # potentially refer to the comment
                 self.message_errors["brands"]["node"],
+                node.id.name,
                 "CO01",
                 "Strings should use the corresponding terms instead of"
                 f" hard-coded brand names ({self.message_errors['brands']['matches']})",
@@ -260,6 +271,7 @@ class Linter(visitor.Visitor):
                 # Using the passed node, otherwise the offset would
                 # potentially refer to the comment
                 self.message_errors["banned_words"]["node"],
+                node.id.name,
                 "CO02",
                 f"Strings should not include use banned words"
                 f" ({self.message_errors['banned_words']['matches']})",
@@ -268,7 +280,7 @@ class Linter(visitor.Visitor):
     def visit_MessageReference(self, node):
         # Log errors if message references are not supported
         if "SY02" in self.config and self.config["SY02"]["disabled"]:
-            self.add_error(node, "SY02", "Message references are not supported.")
+            self.add_error(node, None, "SY02", "Message references are not supported.")
 
         # We don't recurse into message references, the identifiers are either
         # checked elsewhere or are attributes and come from DOM.
@@ -278,7 +290,7 @@ class Linter(visitor.Visitor):
     def visit_TermReference(self, node):
         # Log errors if term references are not supported
         if "SY03" in self.config and self.config["SY03"]["disabled"]:
-            self.add_error(node, "SY03", "Terms are not supported.")
+            self.add_error(node, None, "SY03", "Terms are not supported.")
         pass
 
     def visit_TextElement(self, node):
@@ -307,6 +319,7 @@ class Linter(visitor.Visitor):
             }
 
     def visit_Identifier(self, node):
+        message_id = f"-{node.name}" if self.state["is_term"] else node.name
         if (
             "ID01" in self.config
             and self.config["ID01"]["enabled"]
@@ -314,7 +327,10 @@ class Linter(visitor.Visitor):
             and not self.identifier_re.fullmatch(node.name)
         ):
             self.add_error(
-                node, "ID01", "Identifiers may only contain lowercase characters and -"
+                node,
+                message_id,
+                "ID01",
+                "Identifiers may only contain lowercase characters and -",
             )
 
         if (
@@ -325,6 +341,7 @@ class Linter(visitor.Visitor):
         ):
             self.add_error(
                 node,
+                message_id,
                 "ID02",
                 f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
             )
@@ -339,6 +356,7 @@ class Linter(visitor.Visitor):
         if not self.state["node_can_be_resource_comment"]:
             self.add_error(
                 node,
+                None,
                 "RC01",
                 "Resource comments (###) should be placed at the top of the file, just "
                 "after the license header. There should only be one resource comment "
@@ -356,6 +374,7 @@ class Linter(visitor.Visitor):
         if lines_after != 2:
             self.add_error(
                 node,
+                None,
                 "RC02",
                 "Resource comments (###) should be followed by one empty line.",
             )
@@ -364,6 +383,7 @@ class Linter(visitor.Visitor):
         if lines_before != 2:
             self.add_error(
                 node,
+                None,
                 "RC03",
                 "Resource comments (###) should have one empty line above them.",
             )
@@ -372,7 +392,7 @@ class Linter(visitor.Visitor):
     def visit_SelectExpression(self, node):
         # Log errors if variants are not supported
         if node.variants and "SY04" in self.config and self.config["SY04"]["disabled"]:
-            self.add_error(node, "SY04", "Variants are not supported.")
+            self.add_error(node, None, "SY04", "Variants are not supported.")
             pass
         else:
             # We only want to visit the variant values, the identifiers in selectors
@@ -390,6 +410,7 @@ class Linter(visitor.Visitor):
         if not self.state["can_have_group_comment"]:
             self.add_error(
                 node,
+                None,
                 "GC04",
                 "Group comments (##) must be followed by at least one message. Make sure "
                 "that a single group comment with multiple pararaphs is not separated by "
@@ -411,6 +432,7 @@ class Linter(visitor.Visitor):
 
             self.add_error(
                 node,
+                None,
                 "GC01",
                 "Group comments (##) should not be at the end of the file, they should "
                 "always be above a message. Only an empty group comment is allowed at "
@@ -421,6 +443,7 @@ class Linter(visitor.Visitor):
         if lines_after != 2:
             self.add_error(
                 node,
+                None,
                 "GC02",
                 "Group comments (##) should be followed by one empty line.",
             )
@@ -429,6 +452,7 @@ class Linter(visitor.Visitor):
         if lines_before != 2:
             self.add_error(
                 node,
+                None,
                 "GC03",
                 "Group comments (##) should have an empty line before them.",
             )
@@ -440,16 +464,18 @@ class Linter(visitor.Visitor):
 
         # Log errors if variable references are not supported
         if "SY06" in self.config and self.config["SY06"]["disabled"]:
-            self.add_error(node, "SY06", "Variable references are not supported.")
+            self.add_error(node, None, "SY06", "Variable references are not supported.")
 
         pass
 
-    def add_error(self, node, rule, msg):
+    def add_error(self, node, message_id, rule, msg):
         (col, line) = self.span_to_line_and_col(node.span)
 
         file_path = os.path.relpath(self.path, self.root_folder)
+        message_id = message_id if message_id is not None else "-"
         error_msg = f"""
             File path: {file_path}
+            Message ID: {message_id}
             Position: line {line} column {col}
             Error ({rule}): {msg}"""
 
