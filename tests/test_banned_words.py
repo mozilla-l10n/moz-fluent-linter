@@ -3,7 +3,7 @@ from src.fluent_linter import linter
 from fluent.syntax import parse
 
 
-class TestBrands(unittest.TestCase):
+class TestBannedWords(unittest.TestCase):
     def checkContent(self, config, content):
         l = linter.Linter(
             "file.ftl", "root", config, content, linter.get_offsets_and_lines(content)
@@ -14,28 +14,21 @@ class TestBrands(unittest.TestCase):
 
     def testCO01(self):
         content = """
-bad-firefox1 = Welcome to Firefox
+excluded-word = Set up your alias
 
 # Comment should be ignored when displaying the offset of the error
-bad-firefox2 = Welcome to Firefox again
-bad-firefox2b = <span>Welcome to Firefox<span> again
-bad-firefox3 = <b>Firefox</b>
-bad-firefox-excluded = <b>Firefox</b>
+excluded-word2 = Set up Your Alias
+excluded-word3 = Set up Your <b>alias</b>
+excluded-word4 = <b>Set up Your Alias Now</b>
+bad-ignored = Alias
 
-bad-mozilla1 = Welcome to Mozilla
-bad-mozilla2 = Welcome to Mozilla again
-bad-mozilla2b = <span>Welcome to Mozilla</span> again
-bad-mozilla3 = <b>Mozilla</b>
+excluded_sentence1 = This is a black list
+excluded_sentence2 = This is a <b>black list</b>
 
-good-firefox1 = Welcome to { -brand-firefox }
-good-firefox2 = Welcome to { firefox-message }
-
-good-mozilla1 = Welcome to { -brand-mozilla }
-good-mozilla2 = Welcome to { mozilla-message }
 """
 
         config = {
-            "CO01": {
+            "CO02": {
                 "enabled": False,
             }
         }
@@ -43,25 +36,25 @@ good-mozilla2 = Welcome to { mozilla-message }
         self.assertEqual(len(results), 0)
 
         config = {
-            "CO01": {
+            "CO02": {
                 "enabled": True,
-                "brands": ["Firefox", "Mozilla"],
+                "words": ["alias", "Black List"],
                 "exclusions": {
-                    "messages": ["bad-firefox-excluded"],
+                    "messages": ["bad-ignored"],
                 },
             }
         }
         results = self.checkContent(config, content)
-        self.assertEqual(len(results), 8)
-        self.assertTrue("CO01" in results[0])
-        self.assertTrue("Firefox" in results[0])
+        self.assertEqual(len(results), 6)
+        self.assertTrue("CO02" in results[0])
         self.assertTrue("line 5" in results[1])
-        self.assertTrue("Mozilla" in results[5])
+        self.assertTrue("alias" in results[0])
+        self.assertTrue("black list" in results[5])
 
         config = {
             "CO01": {
                 "enabled": True,
-                "brands": ["Firefox", "Mozilla"],
+                "words": ["alias", "black list"],
                 "exclusions": {
                     "files": ["file.ftl"],
                 },
