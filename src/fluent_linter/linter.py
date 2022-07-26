@@ -310,7 +310,8 @@ class Linter(visitor.Visitor):
 
         found_banned_words = []
         for word in self.banned_words:
-            if word in cleaned_str.lower():
+            brand_re = re.compile(r"\b" + word + r"\b")
+            if brand_re.search(cleaned_str.lower()):
                 found_banned_words.append(word)
         if found_banned_words:
             self.message_errors["banned_words"] = {
