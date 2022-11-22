@@ -32,6 +32,10 @@ good-firefox2 = Welcome to { firefox-message }
 
 good-mozilla1 = Welcome to { -brand-mozilla }
 good-mozilla2 = Welcome to { mozilla-message }
+
+bad-monitor = Monitor your email
+good-monitor = Monitored emails
+good-monitor2 = Set up your monitor.
 """
 
         config = {
@@ -70,3 +74,10 @@ good-mozilla2 = Welcome to { mozilla-message }
         }
         results = self.checkContent(config, content)
         self.assertEqual(len(results), 0)
+
+        config = {"CO01": {"enabled": True, "brands": ["Monitor"], "exclusions": {}}}
+        results = self.checkContent(config, content)
+        print("\n".join(results))
+        self.assertEqual(len(results), 1)
+        self.assertTrue("bad-monitor" in results[0])
+        self.assertTrue("good-monitor" not in results[0])

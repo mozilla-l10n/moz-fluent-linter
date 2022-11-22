@@ -278,7 +278,8 @@ class Linter(visitor.Visitor):
         ):
             found_brands = []
             for brand in self.brand_names:
-                if brand in cleaned_str:
+                brand_re = re.compile(r"\b" + brand + r"\b")
+                if brand_re.search(cleaned_str):
                     found_brands.append(brand)
             if found_brands:
                 self.add_error(
@@ -294,8 +295,8 @@ class Linter(visitor.Visitor):
         ):
             found_banned_words = []
             for word in self.banned_words:
-                brand_re = re.compile(r"\b" + word + r"\b")
-                if brand_re.search(cleaned_str.lower()):
+                bannedword_re = re.compile(r"\b" + word + r"\b")
+                if bannedword_re.search(cleaned_str.lower()):
                     found_banned_words.append(word)
             if found_banned_words:
                 self.add_error(
