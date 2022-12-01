@@ -1,5 +1,7 @@
 # Fluent Linter
 
+[![PyPI version](https://badge.fury.io/py/moz-fluent-linter.svg)](https://badge.fury.io/py/moz-fluent-linter)
+
 [![Unit Tests](https://github.com/mozilla-l10n/moz-fluent-linter/actions/workflows/tests.yml/badge.svg)](https://github.com/mozilla-l10n/moz-fluent-linter/actions/workflows/tests.yml)
 
 This script is largely based on the Fluent Linter [used in mozilla-central](https://firefox-source-docs.mozilla.org/code-quality/lint/linters/fluent-lint.html) for Firefox localization.
