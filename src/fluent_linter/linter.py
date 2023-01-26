@@ -272,6 +272,8 @@ class Linter(visitor.Visitor):
                         "\n            Missing references: "
                         + ", ".join([f"${m}" for m in missing_references]),
                     )
+
+        # Reset comment and variable references after reading the message
         self.state["comment"] = ""
         self.state["variables"] = []
 
@@ -283,13 +285,14 @@ class Linter(visitor.Visitor):
         # We don't recurse into message references, the identifiers are either
         # checked elsewhere or are attributes and come from DOM.
 
-        pass
-
     def visit_TermReference(self, node):
         # Log errors if term references are not supported
         if "SY03" in self.config and self.config["SY03"]["disabled"]:
             self.add_error(node, None, "SY03", "Terms are not supported.")
-        pass
+
+        # Reset comment and variable references after reading the message
+        self.state["comment"] = ""
+        self.state["variables"] = []
 
     def visit_TextElement(self, node):
         html_stripper = MLStripper()
