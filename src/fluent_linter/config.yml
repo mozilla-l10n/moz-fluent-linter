@@ -69,15 +69,24 @@
 
 # Comments
 #
-# Specify if checks for group and section comments are disabled. If the config
-# is missing, it will considered as enabled.
+# Specify if checks for group and resource comments are enabled or disabled.
+# If the config is missing, the rule will be enabled.
 #
 # Example:
 # GC:
 #     disabled: true
 #
-# GC: group comments
-# RC: resource comments
+# GC: group comments (default: enabled)
+# RC: resource comments (default: enabled)
+#
+# Check for variable references in comments associated to a message. Disabled
+# by default.
+#
+# VC: variable comments (default: disabled)
+#
+# To enable:
+# VC:
+#     disabled: false
 
 ---
 ID01:

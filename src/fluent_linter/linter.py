@@ -5,8 +5,7 @@
 # This script is largely based on the Fluent Linter used in mozilla-central
 # https://firefox-source-docs.mozilla.org/code-quality/lint/linters/fluent-lint.html
 
-from fluent.syntax import parse, visitor
-from fluent.syntax import serializer
+from fluent.syntax import ast, parse, serializer, visitor
 from html.parser import HTMLParser
 import argparse
 import bisect
@@ -94,6 +93,12 @@ class Linter(visitor.Visitor):
             "can_have_group_comment": True,
             # If currently looking at a term
             "is_term": False,
+            # Comment bound to the current message
+            "comment": "",
+            # The current group comment
+            "group_comment": "",
+            # Variables in the current message
+            "variables": [],
         }
 
         # Set this to true to debug print the root node's json. This is useful for
@@ -247,8 +252,28 @@ class Linter(visitor.Visitor):
 
         # Check typography
         self.check_typography(node)
-
         super().generic_visit(node)
+
+        if "VC" in self.config and not self.config["VC"]["disabled"]:
+            # Check if variables are referenced in comments
+            if self.state["variables"]:
+                comments = self.state["comment"] + self.state["group_comment"]
+                missing_references = [
+                    v for v in self.state["variables"] if f"${v}" not in comments
+                ]
+                if missing_references:
+                    self.add_error(
+                        node,
+                        node.id.name,
+                        "VC01",
+                        "Messages including variables should have a comment "
+                        "explaining what will replace the variable. "
+                        "This can be either a message or group comment. "
+                        "\n            Missing references: "
+                        + ", ".join([f"${m}" for m in missing_references]),
+                    )
+        self.state["comment"] = ""
+        self.state["variables"] = []
 
     def visit_MessageReference(self, node):
         # Log errors if message references are not supported
@@ -389,8 +414,25 @@ class Linter(visitor.Visitor):
             for variant in node.variants:
                 super().generic_visit(variant.value)
 
+        # Store the variable used for the SelectExpression, excluding functions
+        # like PLATFORM()
+        if (
+            type(node.selector) == ast.VariableReference
+            and node.selector.id.name not in self.state["variables"]
+        ):
+            self.state["variables"].append(node.selector.id.name)
+
+    def visit_Comment(self, node):
+        # This node is a comment with: "#"
+
+        # Store the comment
+        self.state["comment"] = node.content
+
     def visit_GroupComment(self, node):
         # This node is a comment with: "##"
+
+        # Store the group comment
+        self.state["group_comment"] = node.content
 
         # Skip if checks for group comments are disabled
         if "GC" in self.config and self.config["GC"]["disabled"]:
@@ -402,7 +444,7 @@ class Linter(visitor.Visitor):
                 None,
                 "GC04",
                 "Group comments (##) must be followed by at least one message. Make sure "
-                "that a single group comment with multiple pararaphs is not separated by "
+                "that a single group comment with multiple paragraphs is not separated by "
                 "whitespace, as it will be interpreted as two different comments.",
             )
             return
@@ -451,11 +493,12 @@ class Linter(visitor.Visitor):
         # We don't recurse into variable references, the identifiers there are
         # allowed to be free form.
 
+        if node.id.name not in self.state["variables"]:
+            self.state["variables"].append(node.id.name)
+
         # Log errors if variable references are not supported
         if "SY06" in self.config and self.config["SY06"]["disabled"]:
             self.add_error(node, None, "SY06", "Variable references are not supported.")
-
-        pass
 
     def add_error(self, node, message_id, rule, msg):
         (col, line) = self.span_to_line_and_col(node.span)
