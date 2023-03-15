@@ -406,7 +406,11 @@ class Linter(visitor.Visitor):
             return
 
     def visit_Placeable(self, node):
-        if "PS01" in self.config and not self.config["PS01"]["disabled"]:
+        if (
+            "PS01" in self.config
+            and not self.config["PS01"]["disabled"]
+            and type(node.expression) not in [ast.SelectExpression]
+        ):
             if (node.span.start + 2) != node.expression.span.start:
                 self.add_error(
                     node,

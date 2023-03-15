@@ -30,7 +30,6 @@ foo-term = {-some-term }
 """
         config = {"PS01": {"disabled": False}}
         results = self.checkContent(config, content)
-        print("\n".join(results))
         self.assertEqual(len(results), 3)
         self.assertTrue("PS01" in results[0])
 
@@ -61,3 +60,15 @@ foo-term2 = {  -some-term}
         results = self.checkContent(config, content)
         self.assertEqual(len(results), 18)
         self.assertTrue("PS01" in results[0])
+
+    def testPS01_select(self):
+        content = """
+select-expression = {
+    $select-var ->
+        [t] Foo { $select-var }
+       *[s] Bar
+}
+"""
+        config = {"PS01": {"disabled": False}}
+        results = self.checkContent(config, content)
+        self.assertEqual(len(results), 0)
