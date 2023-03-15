@@ -429,7 +429,7 @@ class Linter(visitor.Visitor):
                     node,
                     self.last_message_id,
                     "PS01",
-                    f"Placeables should be preceded by exactly one space (`{{ {placeable_name} }}`).",
+                    f"Placeables should be followed by exactly one space (`{{ {placeable_name} }}`).",
                 )
 
         super().generic_visit(node)
