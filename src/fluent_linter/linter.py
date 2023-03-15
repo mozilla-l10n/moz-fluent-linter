@@ -121,7 +121,6 @@ class Linter(visitor.Visitor):
         return False
 
     def check_typography(self, node):
-
         # Serialize message without comments
         parts = []
         parts.append(f"{node.id.name} =")
@@ -406,6 +405,25 @@ class Linter(visitor.Visitor):
             )
             return
 
+    def visit_Placeable(self, node):
+        if "PS01" in self.config and not self.config["PS01"]["disabled"]:
+            if (node.span.start + 2) != node.expression.span.start:
+                self.add_error(
+                    node,
+                    self.last_message_id,
+                    "PS01",
+                    f"Placeables should be preceded by exactly one space (`{{ {node.expression.id.name} }}`).",
+                )
+            if (node.span.end - 2) != node.expression.span.end:
+                self.add_error(
+                    node,
+                    self.last_message_id,
+                    "PS01",
+                    f"Placeables should be preceded by exactly one space (`{{ {node.expression.id.name} }}`).",
+                )
+
+        super().generic_visit(node)
+
     def visit_SelectExpression(self, node):
         # Log errors if variants are not supported
         if node.variants and "SY04" in self.config and self.config["SY04"]["disabled"]:
@@ -571,7 +589,6 @@ def get_newlines_count_before(span, contents):
 
 
 def lint(file_paths, config_path):
-
     # Get list of FTL files
     files = {}
     total_files = 0

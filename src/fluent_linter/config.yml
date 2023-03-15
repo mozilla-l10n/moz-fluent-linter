@@ -69,24 +69,26 @@
 
 # Comments
 #
-# Specify if checks for group and resource comments are enabled or disabled.
-# If the config is missing, the rule will be enabled.
+# Specify if checks for group and resource comments are enabled or disabled. If
+# the config is missing, the rule will be enabled.
 #
-# Example:
-# GC:
-#     disabled: true
+# Example: GC: disabled: true
 #
-# GC: group comments (default: enabled)
-# RC: resource comments (default: enabled)
+# GC: group comments (default: enabled) RC: resource comments (default: enabled)
 #
-# Check for variable references in comments associated to a message. Disabled
-# by default.
-#
+# Check for variable references in comments associated to a message. Disabled by
+# default.
+
 # VC: variable comments (default: disabled)
 #
-# To enable:
-# VC:
-#     disabled: false
+# To enable: VC: disabled: false
+
+# PS: placeable style checks (default: disabled)
+#
+# PS01: placeables (variables, comment and term references ) preceded and
+#       followed by exactly one space ({ $var }, not {$var})
+#
+# To enable: PS01: disabled: false
 
 ---
 ID01:
