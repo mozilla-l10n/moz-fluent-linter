@@ -87,6 +87,14 @@
 # To enable:
 # VC:
 #     disabled: false
+#
+# Variable style checks. Disabled by default.
+#
+# VS01: variables preceded and followed by exactly one space ({ $var }, not {$var})
+#
+# To enable:
+# VS01:
+#     disabled: false
 
 ---
 ID01:
