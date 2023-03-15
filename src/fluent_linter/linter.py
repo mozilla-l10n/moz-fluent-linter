@@ -411,19 +411,25 @@ class Linter(visitor.Visitor):
             and not self.config["PS01"]["disabled"]
             and type(node.expression) not in [ast.SelectExpression]
         ):
+            if type(node.expression) == ast.VariableReference:
+                placeable_name = f"${node.expression.id.name}"
+            elif type(node.expression) == ast.TermReference:
+                placeable_name = f"-{node.expression.id.name}"
+            else:
+                placeable_name = node.expression.id.name
             if (node.span.start + 2) != node.expression.span.start:
                 self.add_error(
                     node,
                     self.last_message_id,
                     "PS01",
-                    f"Placeables should be preceded by exactly one space (`{{ {node.expression.id.name} }}`).",
+                    f"Placeables should be preceded by exactly one space (`{{ {placeable_name} }}`).",
                 )
             if (node.span.end - 2) != node.expression.span.end:
                 self.add_error(
                     node,
                     self.last_message_id,
                     "PS01",
-                    f"Placeables should be preceded by exactly one space (`{{ {node.expression.id.name} }}`).",
+                    f"Placeables should be preceded by exactly one space (`{{ {placeable_name} }}`).",
                 )
 
         super().generic_visit(node)
