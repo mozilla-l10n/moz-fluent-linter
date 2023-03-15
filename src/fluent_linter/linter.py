@@ -407,20 +407,24 @@ class Linter(visitor.Visitor):
             return
 
     def visit_Placeable(self, node):
-        if "VS01" in self.config and not self.config["VS01"]["disabled"] and type(node.expression) == ast.VariableReference:
+        if (
+            "VS01" in self.config
+            and not self.config["VS01"]["disabled"]
+            and type(node.expression) == ast.VariableReference
+        ):
             if (node.span.start + 2) != node.expression.span.start:
                 self.add_error(
                     node,
                     node.expression.id.name,
                     "VS01",
-                    "Variables should be preceded by exactly one space."
+                    "Variables should be preceded by exactly one space.",
                 )
             if (node.span.end - 2) != node.expression.span.end:
                 self.add_error(
                     node,
                     node.expression.id.name,
                     "VS01",
-                    "Variables should be followed by exactly one space."
+                    "Variables should be followed by exactly one space.",
                 )
 
         super().generic_visit(node)
