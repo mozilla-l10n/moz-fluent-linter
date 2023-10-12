@@ -12,3 +12,19 @@ It allows to check reference FTL files for common issues:
 * Use of incorrect characters (e.g. `'` instead of `’`)
 
 It also allows to limit the range of features supported, for example disabling attributes or variants.
+
+## Version control integration
+
+Using [pre-commit](https://pre-commit.com/), add this to the `.pre-commit-config.yaml` in your repository:
+
+```yaml
+repos:
+  - repo: https://github.com/mozilla-l10n/moz-fluent-linter
+    rev: v0.4.3
+    hooks:
+      - id: fluent_linter
+        files: \.ftl$
+        args: [--config, l10n/linter_config.yml, l10n/en/]
+```
+
+This is just an example to get you started, you may need to update the `rev` and `args` depending on your specific needs and configuration.
