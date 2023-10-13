@@ -1,0 +1,8 @@
+- id: fluent_linter
+  name: fluent_linter
+  description: "Fluent Linter: check reference FTL files for common issues"
+  entry: moz-fluent-lint
+  language: python
+  minimum_pre_commit_version: 3.0.0
+  types: [text]
+  files: \.(ftl)$
