@@ -6,3 +6,4 @@
   minimum_pre_commit_version: 3.0.0
   types: [text]
   files: \.(ftl)$
+  pass_filenames: false
