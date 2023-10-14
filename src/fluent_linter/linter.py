@@ -534,7 +534,7 @@ class Linter(visitor.Visitor):
     def add_error(self, node, message_id, rule, msg):
         (col, line) = self.span_to_line_and_col(node.span)
 
-        file_path = os.path.relpath(self.path, self.root_folder)
+        file_path = os.path.relpath(self.path)
         message_id = message_id if message_id is not None else "-"
         error_msg = f"""
             File path: {file_path}
