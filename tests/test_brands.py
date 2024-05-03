@@ -36,6 +36,10 @@ good-mozilla2 = Welcome to { mozilla-message }
 bad-monitor = Monitor your email
 good-monitor = Monitored emails
 good-monitor2 = Set up your monitor.
+
+bad-account = Set up your { -brand-short-name } account
+good-account = Set up your { -brand-short-name }. Account.
+good-account2 = Set up your { -brand-short-name } Account.
 """
 
         config = {
@@ -49,19 +53,20 @@ good-monitor2 = Set up your monitor.
         config = {
             "CO01": {
                 "enabled": True,
-                "brands": ["Firefox", "Mozilla"],
+                "brands": ["Firefox", "Mozilla", "{ -brand-short-name } account"],
                 "exclusions": {
                     "messages": ["bad-firefox-excluded"],
                 },
             }
         }
         results = self.checkContent(config, content)
-        self.assertEqual(len(results), 8)
+        self.assertEqual(len(results), 9)
         self.assertTrue("CO01" in results[0])
         self.assertTrue("Firefox" in results[0])
-        self.assertTrue("line 5" in results[1])
+        self.assertTrue("line 4" in results[1])
         self.assertTrue("bad-firefox2" in results[1])
         self.assertTrue("Mozilla" in results[5])
+        self.assertTrue("{ -brand-short-name } account" in results[8])
 
         config = {
             "CO01": {

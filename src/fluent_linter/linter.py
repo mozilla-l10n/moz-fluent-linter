@@ -136,27 +136,51 @@ class Linter(visitor.Visitor):
         html_stripper.feed("".join(parts))
         cleaned_str = html_stripper.get_data()
 
-        if self.apostrophe_re.search(cleaned_str):
-            if not self.exclude_message("TE01", node.id.name):
+        message_id = node.id.name
+
+        # Check brand names here, so it's possible to also look for combination
+        # of text and terms.
+        if message_id is not None and not self.exclude_message(
+            "CO01", message_id, self.path
+        ):
+            found_brands = []
+            for brand in self.brand_names:
+                if brand == re.escape(brand):
+                    brand_re = re.compile(r"\b" + brand + r"\b")
+                else:
+                    brand_re = re.compile(brand)
+                if brand_re.search(cleaned_str):
+                    found_brands.append(brand)
+            if found_brands:
                 self.add_error(
                     node,
-                    node.id.name,
+                    message_id,
+                    "CO01",
+                    "Strings should use the corresponding terms instead of"
+                    f" hard-coded brand names ({', '.join(found_brands)})",
+                )
+
+        if self.apostrophe_re.search(cleaned_str):
+            if not self.exclude_message("TE01", message_id):
+                self.add_error(
+                    node,
+                    message_id,
                     "TE01",
                     "Strings with apostrophes should use foo\u2019s instead of foo's.",
                 )
         if self.incorrect_apostrophe_re.search(cleaned_str):
-            if not self.exclude_message("TE02", node.id.name):
+            if not self.exclude_message("TE02", message_id):
                 self.add_error(
                     node,
-                    node.id.name,
+                    message_id,
                     "TE02",
                     "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
                 )
         if self.single_quote_re.search(cleaned_str):
-            if not self.exclude_message("TE03", node.id.name):
+            if not self.exclude_message("TE03", message_id):
                 self.add_error(
                     node,
-                    node.id.name,
+                    message_id,
                     "TE03",
                     "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
                 )
@@ -166,19 +190,19 @@ class Linter(visitor.Visitor):
                 cleaned_str = regex.sub("", cleaned_str)
 
             if self.double_quote_re.search(cleaned_str) and not self.exclude_message(
-                "TE04", node.id.name
+                "TE04", message_id
             ):
                 self.add_error(
                     node,
-                    node.id.name,
+                    message_id,
                     "TE04",
                     'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
                 )
         if self.ellipsis_re.search(cleaned_str):
-            if not self.exclude_message("TE05", node.id.name):
+            if not self.exclude_message("TE05", message_id):
                 self.add_error(
                     node,
-                    node.id.name,
+                    message_id,
                     "TE05",
                     "Strings with an ellipsis should use the Unicode \u2026 character"
                     " instead of three periods",
@@ -298,25 +322,8 @@ class Linter(visitor.Visitor):
         html_stripper.feed(node.value)
         cleaned_str = html_stripper.get_data()
 
-        # If part of a message, check for brand and banned words
+        # If part of a message, check for banned words
         message_id = self.last_message_id
-        if message_id is not None and not self.exclude_message(
-            "CO01", message_id, self.path
-        ):
-            found_brands = []
-            for brand in self.brand_names:
-                brand_re = re.compile(r"\b" + brand + r"\b")
-                if brand_re.search(cleaned_str):
-                    found_brands.append(brand)
-            if found_brands:
-                self.add_error(
-                    node,
-                    message_id,
-                    "CO01",
-                    "Strings should use the corresponding terms instead of"
-                    f" hard-coded brand names ({', '.join(found_brands)})",
-                )
-
         if message_id is not None and not self.exclude_message(
             "CO02", message_id, self.path
         ):
