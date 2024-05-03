@@ -20,7 +20,7 @@ Using [pre-commit](https://pre-commit.com/), add this to the `.pre-commit-config
 ```yaml
 repos:
   - repo: https://github.com/mozilla-l10n/moz-fluent-linter
-    rev: v0.4.5
+    rev: v0.4.6
     hooks:
       - id: fluent_linter
         files: \.ftl$
