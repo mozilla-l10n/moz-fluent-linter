@@ -1,16 +1,18 @@
 import unittest
-from src.fluent_linter import linter
+
 from fluent.syntax import parse
+
+from src.fluent_linter import linter
 
 
 class TestBrands(unittest.TestCase):
     def checkContent(self, config, content):
-        l = linter.Linter(
+        ftl_linter = linter.Linter(
             "file.ftl", "root", config, content, linter.get_offsets_and_lines(content)
         )
-        l.visit(parse(content))
+        ftl_linter.visit(parse(content))
 
-        return l.results
+        return ftl_linter.results
 
     def testCO01(self):
         content = """
@@ -82,7 +84,6 @@ good-account2 = Set up your { -brand-short-name } Account.
 
         config = {"CO01": {"enabled": True, "brands": ["Monitor"], "exclusions": {}}}
         results = self.checkContent(config, content)
-        print("\n".join(results))
         self.assertEqual(len(results), 1)
         self.assertTrue("bad-monitor" in results[0])
         self.assertTrue("good-monitor" not in results[0])
