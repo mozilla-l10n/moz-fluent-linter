@@ -5,14 +5,18 @@
 # This script is largely based on the Fluent Linter used in mozilla-central
 # https://firefox-source-docs.mozilla.org/code-quality/lint/linters/fluent-lint.html
 
-from fluent.syntax import ast, parse, serializer, visitor
-from html.parser import HTMLParser
 import argparse
 import bisect
 import os
 import re
 import sys
+
+from html.parser import HTMLParser
+
 import yaml
+
+from fluent.syntax import ast, parse, serializer, visitor
+
 
 try:
     from fluent_linter import version
@@ -418,9 +422,9 @@ class Linter(visitor.Visitor):
             and not self.config["PS01"]["disabled"]
             and type(node.expression) not in [ast.SelectExpression]
         ):
-            if type(node.expression) == ast.VariableReference:
+            if isinstance(node.expression, ast.VariableReference):
                 placeable_name = f"${node.expression.id.name}"
-            elif type(node.expression) == ast.TermReference:
+            elif isinstance(node.expression, ast.TermReference):
                 placeable_name = f"-{node.expression.id.name}"
             else:
                 placeable_name = node.expression.id.name
@@ -455,7 +459,7 @@ class Linter(visitor.Visitor):
         # Store the variable used for the SelectExpression, excluding functions
         # like PLATFORM()
         if (
-            type(node.selector) == ast.VariableReference
+            isinstance(node.selector, ast.VariableReference)
             and node.selector.id.name not in self.state["variables"]
         ):
             self.state["variables"].append(node.selector.id.name)

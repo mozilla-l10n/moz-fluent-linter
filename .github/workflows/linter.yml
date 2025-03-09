@@ -4,10 +4,26 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  linter:
+  ruff:
     runs-on: ubuntu-latest
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v4
-      - name: Run black
-        uses: psf/black@stable
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/requirements.txt
+          version: "0.6.5"
+      - name: Install Dependencies
+        run: uv pip install -r .github/requirements.txt
+        env:
+          UV_SYSTEM_PYTHON: 1
+      - name: ruff lint
+        run: ruff check
+      - name: ruff format
+        run: ruff format --check

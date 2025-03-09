@@ -1,16 +1,18 @@
 import unittest
-from src.fluent_linter import linter
+
 from fluent.syntax import parse
+
+from src.fluent_linter import linter
 
 
 class TestIDs(unittest.TestCase):
     def checkContent(self, path, root, config, content):
-        l = linter.Linter(
+        ftl_linter = linter.Linter(
             path, root, config, content, linter.get_offsets_and_lines(content)
         )
-        l.visit(parse(content))
+        ftl_linter.visit(parse(content))
 
-        return l.results
+        return ftl_linter.results
 
     def testID01(self):
         content = """
