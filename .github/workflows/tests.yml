@@ -9,8 +9,6 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - '3.9'
-          - '3.10'
           - '3.11'
           - '3.12'
     steps:
@@ -20,10 +18,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - name: Install Python dependencies
-        run: |
-          pip install -r .github/requirements.txt
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/requirements.txt
+          version: "0.6.5"
+      - name: Install Dependencies
+        run: uv pip install -r .github/requirements.txt
+        env:
+          UV_SYSTEM_PYTHON: 1
       - name: Run tests
         run: |
           python -m unittest discover
