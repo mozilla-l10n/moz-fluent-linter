@@ -164,31 +164,42 @@ class Linter(visitor.Visitor):
                     f" hard-coded brand names ({', '.join(found_brands)})",
                 )
 
-        if self.apostrophe_re.search(cleaned_str):
-            if not self.exclude_message("TE01", message_id):
-                self.add_error(
-                    node,
-                    message_id,
-                    "TE01",
-                    "Strings with apostrophes should use foo\u2019s instead of foo's.",
-                )
-        if self.incorrect_apostrophe_re.search(cleaned_str):
-            if not self.exclude_message("TE02", message_id):
-                self.add_error(
-                    node,
-                    message_id,
-                    "TE02",
-                    "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
-                )
-        if self.single_quote_re.search(cleaned_str):
-            if not self.exclude_message("TE03", message_id):
-                self.add_error(
-                    node,
-                    message_id,
-                    "TE03",
-                    "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
-                )
-        if self.double_quote_re.search(cleaned_str):
+        if (
+            self.config.get("TE01", {}).get("enabled", True)
+            and self.apostrophe_re.search(cleaned_str)
+            and not self.exclude_message("TE01", message_id)
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "TE01",
+                "Strings with apostrophes should use foo\u2019s instead of foo's.",
+            )
+        if (
+            self.config.get("TE02", {}).get("enabled", True)
+            and self.incorrect_apostrophe_re.search(cleaned_str)
+            and not self.exclude_message("TE02", message_id)
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "TE02",
+                "Strings with apostrophes should use foo\u2019s instead of foo\u2018s.",
+            )
+        if (
+            self.config.get("TE03", {}).get("enabled", True)
+            and self.single_quote_re.search(cleaned_str)
+            and not self.exclude_message("TE03", message_id)
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "TE03",
+                "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
+            )
+        if self.config.get("TE04", {}).get(
+            "enabled", True
+        ) and self.double_quote_re.search(cleaned_str):
             # Ignore parameterized terms and other functions
             for regex in self.ftl_syntax_re:
                 cleaned_str = regex.sub("", cleaned_str)
@@ -202,15 +213,18 @@ class Linter(visitor.Visitor):
                     "TE04",
                     'Double-quoted strings should use Unicode \u201cfoo\u201d instead of "foo".',
                 )
-        if self.ellipsis_re.search(cleaned_str):
-            if not self.exclude_message("TE05", message_id):
-                self.add_error(
-                    node,
-                    message_id,
-                    "TE05",
-                    "Strings with an ellipsis should use the Unicode \u2026 character"
-                    " instead of three periods",
-                )
+        if (
+            self.config.get("TE05", {}).get("enabled", True)
+            and self.ellipsis_re.search(cleaned_str)
+            and not self.exclude_message("TE05", message_id)
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "TE05",
+                "Strings with an ellipsis should use the Unicode \u2026 character"
+                " instead of three periods",
+            )
 
     def generic_visit(self, node):
         node_name = type(node).__name__
