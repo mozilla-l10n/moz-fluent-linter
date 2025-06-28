@@ -163,7 +163,6 @@ class Linter(visitor.Visitor):
                     "Strings should use the corresponding terms instead of"
                     f" hard-coded brand names ({', '.join(found_brands)})",
                 )
-
         if (
             self.config.get("TE01", {}).get("enabled", True)
             and self.apostrophe_re.search(cleaned_str)
@@ -271,6 +270,9 @@ class Linter(visitor.Visitor):
         # Log errors if terms are not supported
         if "SY01" in self.config and self.config["SY01"]["disabled"]:
             self.add_error(node, node.id, "SY01", "Terms are not supported.")
+
+        # Validate the term identifier - terms should have valid identifiers after the hyphen
+        self._validate_id03(node, node.id.name, f"-{node.id.name}", True)
 
         super().generic_visit(node)
 
@@ -385,6 +387,64 @@ class Linter(visitor.Visitor):
                 message_id,
                 "ID02",
                 f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
+            )
+
+        self._validate_id03(
+            node, node.name, message_id, self.state.get("is_term", False)
+        )
+
+    def visit_Junk(self, node):
+        # Try to extract and validate identifiers for ID03 checks
+        if "ID03" in self.config and self.config["ID03"]["enabled"]:
+            content = node.content
+            if "=" in content:
+                potential_id = content.split("=")[0].strip()
+                self._validate_id03(node, potential_id, potential_id)
+
+        # Add syntax error for junk content
+        self.add_error(
+            node,
+            node.content.strip() if hasattr(node, "content") else "",
+            "SY02",
+            "Syntax error in Fluent file - malformed entry detected",
+        )
+
+    def _validate_id03(self, node, identifier, message_id, is_term=False):
+        """Validate identifier against ID03 rules and add errors if found."""
+        if (
+            "ID03" not in self.config
+            or not self.config["ID03"]["enabled"]
+            or self.exclude_message("ID03", identifier, self.path)
+        ):
+            return
+
+        if not identifier:
+            self.add_error(
+                node,
+                message_id,
+                "ID03",
+                "Identifiers cannot be empty",
+            )
+        elif identifier[0].isdigit():
+            self.add_error(
+                node,
+                message_id,
+                "ID03",
+                "Identifiers cannot start with a number",
+            )
+        elif "." in identifier:
+            self.add_error(
+                node,
+                message_id,
+                "ID03",
+                "Identifiers cannot contain dots",
+            )
+        elif " " in identifier:
+            self.add_error(
+                node,
+                message_id,
+                "ID03",
+                "Identifiers cannot contain spaces",
             )
 
     def visit_ResourceComment(self, node):
@@ -570,6 +630,10 @@ class Linter(visitor.Visitor):
         self.results.append(error_msg)
 
     def span_to_line_and_col(self, span):
+        # If no offset data is available, return default values
+        if not self.offsets_and_lines:
+            return (1, 1)
+
         i = bisect.bisect_left(self.offsets_and_lines, (span.start, 0))
         if i > 0:
             col = span.start - self.offsets_and_lines[i - 1][0]
@@ -579,7 +643,11 @@ class Linter(visitor.Visitor):
         # Avoid issues when file doesn't have a new line at the end, and
         # the last string has attributes
         if i >= len(self.offsets_and_lines):
-            i -= 1
+            i = len(self.offsets_and_lines) - 1
+
+        # Additional safety check
+        if i < 0:
+            return (col, 1)
 
         return (col, self.offsets_and_lines[i][1])
 
