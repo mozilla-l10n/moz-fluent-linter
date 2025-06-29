@@ -423,7 +423,7 @@ class Linter(visitor.Visitor):
                 node,
                 message_id,
                 "ID03",
-                "Identifiers cannot be empty",
+                "Cannot extract an identifier",
             )
         elif identifier[0].isdigit():
             self.add_error(
