@@ -73,3 +73,59 @@ foo1= bar
         # Test file exclusion
         results = self.checkContent("path/foo", "root", config, content)
         self.assertEqual(len(results), 0)
+
+    def testID03(self):
+        test_cases = [
+            ("hello.world", "Identifiers cannot contain dots"),
+            ("hello world", "Identifiers cannot contain spaces"),
+            ("1hello", "Identifiers cannot start with a number"),
+            ("9test", "Identifiers cannot start with a number"),
+        ]
+        for test_id, expected_msg in test_cases:
+            with self.subTest(test_id=test_id):
+                content = f"{test_id} = bar"
+                config = {"ID03": {"enabled": True}}
+                results = self.checkContent("path", "root", config, content)
+                self.assertGreater(
+                    len(results),
+                    0,
+                    f"Expected '{test_id}' to be invalid but got no errors",
+                )
+                self.assertIn(
+                    expected_msg,
+                    results[0],
+                    f"Expected error message '{expected_msg}' for '{test_id}'",
+                )
+
+        # Test that valid identifiers are not flagged (including those ending with hyphens)
+        valid_ids = [
+            "valid-term",
+            "hello-",
+            "-hello",
+            "test-world-",
+            "ending-with-hyphen-",
+        ]
+        for valid_id in valid_ids:
+            with self.subTest(valid_id=valid_id):
+                content = f"{valid_id} = bar"
+                config = {"ID03": {"enabled": True}}
+                results = self.checkContent("path", "root", config, content)
+                self.assertEqual(
+                    len(results),
+                    0,
+                    f"Valid identifier '{valid_id}' should not be flagged",
+                )
+
+        # Test that valid terms (starting with -) are not flagged
+        content = "-valid-term = bar"
+        config = {"ID03": {"enabled": True}}
+        results = self.checkContent("path", "root", config, content)
+        self.assertEqual(len(results), 0, "Valid terms should not be flagged")
+
+    def testInvalidIDs(self):
+        # Test case for empty identifier
+        content = "= bar"
+        config = {"ID03": {"enabled": True}}
+        results = self.checkContent("path", "root", config, content)
+        # Note: Empty identifiers cause parse errors, so this is handled by the parser itself
+        self.assertGreater(len(results), 0, "Empty identifiers should be detected")
