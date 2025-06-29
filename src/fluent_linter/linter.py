@@ -409,7 +409,7 @@ class Linter(visitor.Visitor):
             "Syntax error in Fluent file - malformed entry detected",
         )
 
-    def _validate_id03(self, node, identifier, message_id, is_term=False):
+    def _validate_id03(self, node, identifier, message_id):
         """Validate identifier against ID03 rules and add errors if found."""
         if (
             "ID03" not in self.config
