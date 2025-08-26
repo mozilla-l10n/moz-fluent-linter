@@ -257,232 +257,16 @@ class Linter(visitor.Visitor):
             # Only visit values for Attribute nodes, the identifier comes from dom.
             super().generic_visit(node.value)
 
-    def visit_FunctionReference(self, node):
-        # We don't recurse into function references, the identifiers there are
-        # allowed to be free form.
-        pass
-
-    def visit_Term(self, node):
-        self.state["is_term"] = True
-        # There must be at least one message or term between group comments.
-        self.state["can_have_group_comment"] = True
-        self.last_message_id = None
-
-        # Log errors if terms are not supported
-        if "SY01" in self.config and self.config["SY01"]["disabled"]:
-            self.add_error(node, node.id, "SY01", "Terms are not supported.")
-
-        super().generic_visit(node)
-
-    def visit_Message(self, node):
-        self.state["is_term"] = False
-        # There must be at least one message or term between group comments.
-        self.state["can_have_group_comment"] = True
-        self.last_message_id = node.id.name
-
-        # Check for duplicates
-        if node.id.name in self.ids:
-            self.add_error(
-                node,
-                node.id.name,
-                "MI01",
-                f"Identifier {node.id.name} is present more than once in the file.",
-            )
-        else:
-            self.ids.append(node.id.name)
-
-        # Check typography
-        self.check_typography(node)
-        super().generic_visit(node)
-
-        if "VC" in self.config and not self.config["VC"]["disabled"]:
-            # Check if variables are referenced in comments
-            if self.state["variables"]:
-                comments = self.state["comment"] + self.state["group_comment"]
-                missing_references = [
-                    v for v in self.state["variables"] if f"${v}" not in comments
-                ]
-                if missing_references:
-                    self.add_error(
-                        node,
-                        node.id.name,
-                        "VC01",
-                        "Messages including variables should have a comment "
-                        "explaining what will replace the variable. "
-                        "This can be either a message or group comment. "
-                        "\n            Missing references: "
-                        + ", ".join([f"${m}" for m in missing_references]),
-                    )
-
-        # Reset comment and variable references after reading the message
-        self.state["comment"] = ""
-        self.state["variables"] = []
-
-    def visit_MessageReference(self, node):
-        # Log errors if message references are not supported
-        if "SY02" in self.config and self.config["SY02"]["disabled"]:
-            self.add_error(node, None, "SY02", "Message references are not supported.")
-
-        # We don't recurse into message references, the identifiers are either
-        # checked elsewhere or are attributes and come from DOM.
-
-    def visit_TermReference(self, node):
-        # Log errors if term references are not supported
-        if "SY03" in self.config and self.config["SY03"]["disabled"]:
-            self.add_error(node, None, "SY03", "Terms are not supported.")
-
-        # Reset comment and variable references after reading the message
-        self.state["comment"] = ""
-        self.state["variables"] = []
-
-    def visit_TextElement(self, node):
-        html_stripper = MLStripper()
-        html_stripper.feed(node.value)
-        cleaned_str = html_stripper.get_data()
-
-        # If part of a message, check for banned words
-        message_id = self.last_message_id
-        if message_id is not None and not self.exclude_message(
-            "CO02", message_id, self.path
-        ):
-            found_banned_words = []
-            for word in self.banned_words:
-                bannedword_re = re.compile(r"\b" + word + r"\b")
-                if bannedword_re.search(cleaned_str.lower()):
-                    found_banned_words.append(word)
-            if found_banned_words:
-                self.add_error(
-                    node,
-                    message_id,
-                    "CO02",
-                    "Strings should not include banned words"
-                    f" ({', '.join(found_banned_words)})",
-                )
-
-    def visit_Identifier(self, node):
-        message_id = f"-{node.name}" if self.state["is_term"] else node.name
-        if (
-            "ID01" in self.config
-            and self.config["ID01"]["enabled"]
-            and not self.exclude_message("ID01", node.name, self.path)
-            and not self.identifier_re.fullmatch(node.name)
-        ):
-            self.add_error(
-                node,
-                message_id,
-                "ID01",
-                "Identifiers may only contain lowercase characters and -",
-            )
-
-        if (
-            "ID02" in self.config
-            and self.config["ID02"]["enabled"]
-            and not self.exclude_message("ID02", node.name, self.path)
-            and len(node.name) < self.config["ID02"]["min_length"]
-        ):
-            self.add_error(
-                node,
-                message_id,
-                "ID02",
-                f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
-            )
-
-    def visit_ResourceComment(self, node):
-        # This node is a comment with: "###"
-
-        # Skip if checks for group comments are disabled
-        if "RC" in self.config and self.config["RC"]["disabled"]:
-            return
-
-        if not self.state["node_can_be_resource_comment"]:
-            self.add_error(
-                node,
-                None,
-                "RC01",
-                "Resource comments (###) should be placed at the top of the file, just "
-                "after the license header. There should only be one resource comment "
-                "per file.",
-            )
-            return
-
-        lines_after = get_newlines_count_after(node.span, self.contents)
-        lines_before = get_newlines_count_before(node.span, self.contents)
-
-        if node.span.end == len(self.contents) - 1:
-            # This file only contains a resource comment.
-            return
-
-        if lines_after != 2:
-            self.add_error(
-                node,
-                None,
-                "RC02",
-                "Resource comments (###) should be followed by one empty line.",
-            )
-            return
-
-        if lines_before != 2:
-            self.add_error(
-                node,
-                None,
-                "RC03",
-                "Resource comments (###) should have one empty line above them.",
-            )
-            return
-
-    def visit_Placeable(self, node):
-        if (
-            "PS01" in self.config
-            and not self.config["PS01"]["disabled"]
-            and type(node.expression) not in [ast.SelectExpression]
-        ):
-            if isinstance(node.expression, ast.VariableReference):
-                placeable_name = f"${node.expression.id.name}"
-            elif isinstance(node.expression, ast.TermReference):
-                placeable_name = f"-{node.expression.id.name}"
-            else:
-                placeable_name = node.expression.id.name
-            if (node.span.start + 2) != node.expression.span.start:
-                self.add_error(
-                    node,
-                    self.last_message_id,
-                    "PS01",
-                    f"Placeables should be preceded by exactly one space (`{{ {placeable_name} }}`).",
-                )
-            if (node.span.end - 2) != node.expression.span.end:
-                self.add_error(
-                    node,
-                    self.last_message_id,
-                    "PS01",
-                    f"Placeables should be followed by exactly one space (`{{ {placeable_name} }}`).",
-                )
-
-        super().generic_visit(node)
-
-    def visit_SelectExpression(self, node):
-        # Log errors if variants are not supported
-        if node.variants and "SY04" in self.config and self.config["SY04"]["disabled"]:
-            self.add_error(node, None, "SY04", "Variants are not supported.")
-            pass
-        else:
-            # We only want to visit the variant values, the identifiers in selectors
-            # and keys are allowed to be free form.
-            for variant in node.variants:
-                super().generic_visit(variant.value)
-
-        # Store the variable used for the SelectExpression, excluding functions
-        # like PLATFORM()
-        if (
-            isinstance(node.selector, ast.VariableReference)
-            and node.selector.id.name not in self.state["variables"]
-        ):
-            self.state["variables"].append(node.selector.id.name)
-
     def visit_Comment(self, node):
         # This node is a comment with: "#"
 
         # Store the comment
         self.state["comment"] = node.content
+
+    def visit_FunctionReference(self, node):
+        # We don't recurse into function references, the identifiers there are
+        # allowed to be free form.
+        pass
 
     def visit_GroupComment(self, node):
         # This node is a comment with: "##"
@@ -544,6 +328,222 @@ class Linter(visitor.Visitor):
                 "Group comments (##) should have an empty line before them.",
             )
             return
+
+    def visit_Identifier(self, node):
+        message_id = f"-{node.name}" if self.state["is_term"] else node.name
+        if (
+            "ID01" in self.config
+            and self.config["ID01"]["enabled"]
+            and not self.exclude_message("ID01", node.name, self.path)
+            and not self.identifier_re.fullmatch(node.name)
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "ID01",
+                "Identifiers may only contain lowercase characters and -",
+            )
+
+        if (
+            "ID02" in self.config
+            and self.config["ID02"]["enabled"]
+            and not self.exclude_message("ID02", node.name, self.path)
+            and len(node.name) < self.config["ID02"]["min_length"]
+        ):
+            self.add_error(
+                node,
+                message_id,
+                "ID02",
+                f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
+            )
+
+    def visit_Message(self, node):
+        self.state["is_term"] = False
+        # There must be at least one message or term between group comments.
+        self.state["can_have_group_comment"] = True
+        self.last_message_id = node.id.name
+
+        # Check for duplicates
+        if node.id.name in self.ids:
+            self.add_error(
+                node,
+                node.id.name,
+                "MI01",
+                f"Identifier {node.id.name} is present more than once in the file.",
+            )
+        else:
+            self.ids.append(node.id.name)
+
+        # Check typography
+        self.check_typography(node)
+        super().generic_visit(node)
+
+        if "VC" in self.config and not self.config["VC"]["disabled"]:
+            # Check if variables are referenced in comments
+            if self.state["variables"]:
+                comments = self.state["comment"] + self.state["group_comment"]
+                missing_references = [
+                    v for v in self.state["variables"] if f"${v}" not in comments
+                ]
+                if missing_references:
+                    self.add_error(
+                        node,
+                        node.id.name,
+                        "VC01",
+                        "Messages including variables should have a comment "
+                        "explaining what will replace the variable. "
+                        "This can be either a message or group comment. "
+                        "\n            Missing references: "
+                        + ", ".join([f"${m}" for m in missing_references]),
+                    )
+
+        # Reset comment and variable references after reading the message
+        self.state["comment"] = ""
+        self.state["variables"] = []
+
+    def visit_MessageReference(self, node):
+        # Log errors if message references are not supported
+        if "SY02" in self.config and self.config["SY02"]["disabled"]:
+            self.add_error(node, None, "SY02", "Message references are not supported.")
+
+        # We don't recurse into message references, the identifiers are either
+        # checked elsewhere or are attributes and come from DOM.
+
+    def visit_Placeable(self, node):
+        if (
+            "PS01" in self.config
+            and not self.config["PS01"]["disabled"]
+            and type(node.expression) not in [ast.SelectExpression]
+        ):
+            if isinstance(node.expression, ast.VariableReference):
+                placeable_name = f"${node.expression.id.name}"
+            elif isinstance(node.expression, ast.TermReference):
+                placeable_name = f"-{node.expression.id.name}"
+            else:
+                placeable_name = node.expression.id.name
+            if (node.span.start + 2) != node.expression.span.start:
+                self.add_error(
+                    node,
+                    self.last_message_id,
+                    "PS01",
+                    f"Placeables should be preceded by exactly one space (`{{ {placeable_name} }}`).",
+                )
+            if (node.span.end - 2) != node.expression.span.end:
+                self.add_error(
+                    node,
+                    self.last_message_id,
+                    "PS01",
+                    f"Placeables should be followed by exactly one space (`{{ {placeable_name} }}`).",
+                )
+
+        super().generic_visit(node)
+
+    def visit_ResourceComment(self, node):
+        # This node is a comment with: "###"
+
+        # Skip if checks for group comments are disabled
+        if "RC" in self.config and self.config["RC"]["disabled"]:
+            return
+
+        if not self.state["node_can_be_resource_comment"]:
+            self.add_error(
+                node,
+                None,
+                "RC01",
+                "Resource comments (###) should be placed at the top of the file, just "
+                "after the license header. There should only be one resource comment "
+                "per file.",
+            )
+            return
+
+        lines_after = get_newlines_count_after(node.span, self.contents)
+        lines_before = get_newlines_count_before(node.span, self.contents)
+
+        if node.span.end == len(self.contents) - 1:
+            # This file only contains a resource comment.
+            return
+
+        if lines_after != 2:
+            self.add_error(
+                node,
+                None,
+                "RC02",
+                "Resource comments (###) should be followed by one empty line.",
+            )
+            return
+
+        if lines_before != 2:
+            self.add_error(
+                node,
+                None,
+                "RC03",
+                "Resource comments (###) should have one empty line above them.",
+            )
+            return
+
+    def visit_SelectExpression(self, node):
+        # Log errors if variants are not supported
+        if node.variants and "SY04" in self.config and self.config["SY04"]["disabled"]:
+            self.add_error(node, None, "SY04", "Variants are not supported.")
+            pass
+        else:
+            # We only want to visit the variant values, the identifiers in selectors
+            # and keys are allowed to be free form.
+            for variant in node.variants:
+                super().generic_visit(variant.value)
+
+        # Store the variable used for the SelectExpression, excluding functions
+        # like PLATFORM()
+        if (
+            isinstance(node.selector, ast.VariableReference)
+            and node.selector.id.name not in self.state["variables"]
+        ):
+            self.state["variables"].append(node.selector.id.name)
+
+    def visit_Term(self, node):
+        self.state["is_term"] = True
+        # There must be at least one message or term between group comments.
+        self.state["can_have_group_comment"] = True
+        self.last_message_id = None
+
+        # Log errors if terms are not supported
+        if "SY01" in self.config and self.config["SY01"]["disabled"]:
+            self.add_error(node, node.id, "SY01", "Terms are not supported.")
+
+        super().generic_visit(node)
+
+    def visit_TermReference(self, node):
+        # Log errors if term references are not supported
+        if "SY03" in self.config and self.config["SY03"]["disabled"]:
+            self.add_error(node, None, "SY03", "Terms are not supported.")
+
+        # Reset comment and variable references after reading the message
+        self.state["comment"] = ""
+        self.state["variables"] = []
+
+    def visit_TextElement(self, node):
+        html_stripper = MLStripper()
+        html_stripper.feed(node.value)
+        cleaned_str = html_stripper.get_data()
+
+        # If part of a message, check for banned words
+        message_id = self.last_message_id
+        if message_id is not None and not self.exclude_message(
+            "CO02", message_id, self.path
+        ):
+            found_banned_words = []
+            for word in self.banned_words:
+                bannedword_re = re.compile(r"\b" + word + r"\b")
+                if bannedword_re.search(cleaned_str.lower()):
+                    found_banned_words.append(word)
+            if found_banned_words:
+                self.add_error(
+                    node,
+                    message_id,
+                    "CO02",
+                    "Strings should not include banned words"
+                    f" ({', '.join(found_banned_words)})",
+                )
 
     def visit_VariableReference(self, node):
         # We don't recurse into variable references, the identifiers there are
