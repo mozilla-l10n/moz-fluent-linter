@@ -357,6 +357,15 @@ class Linter(visitor.Visitor):
                 f"Identifiers must be at least {self.config['ID02']['min_length']} characters long",
             )
 
+    def visit_Junk(self, node):
+        annotations = " ".join([a.message for a in node.annotations])
+        self.add_error(
+            node,
+            "",
+            "JUNK",
+            f"There are syntax errors causing parsing issues. {annotations}",
+        )
+
     def visit_Message(self, node):
         self.state["is_term"] = False
         # There must be at least one message or term between group comments.
