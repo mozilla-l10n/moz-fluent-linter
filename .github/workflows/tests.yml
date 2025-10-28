@@ -4,7 +4,7 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  linter:
+  tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
