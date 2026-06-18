@@ -68,14 +68,27 @@ class Linter(visitor.Visitor):
         self.ellipsis_re = re.compile(r"\.\.\.")
 
         if "CO01" in config and config["CO01"]["enabled"]:
-            self.brand_names = config["CO01"].get("brands", [])
+            brand_names = config["CO01"].get("brands", [])
         else:
-            self.brand_names = []
+            brand_names = []
+        # Precompile brand patterns once: plain brands match on word boundaries,
+        # brands containing regex metacharacters are treated as regular expressions.
+        self.brand_patterns = []
+        for brand in brand_names:
+            if brand == re.escape(brand):
+                self.brand_patterns.append((brand, re.compile(r"\b" + brand + r"\b")))
+            else:
+                self.brand_patterns.append((brand, re.compile(brand)))
+
         if "CO02" in config and config["CO02"]["enabled"]:
             # Transform lowercase
-            self.banned_words = [word.lower() for word in config["CO02"]["words"]]
+            banned_words = [word.lower() for word in config["CO02"]["words"]]
         else:
-            self.banned_words = []
+            banned_words = []
+        # Precompile banned word patterns once (matched case-insensitively).
+        self.banned_word_patterns = [
+            (word, re.compile(r"\b" + word + r"\b")) for word in banned_words
+        ]
 
         # Syntax to ignore when checking double quotes
         self.ftl_syntax_re = [
@@ -89,6 +102,9 @@ class Linter(visitor.Visitor):
             re.compile(r'{\s*"(?:[\s{}]{0,1})"\s*}'),
         ]
         self.ids = []
+        # ID of the message currently being visited (None when in a term or
+        # before any message/term has been seen).
+        self.last_message_id = None
         self.state = {
             # The resource comment should be at the top of the page after the license.
             "node_can_be_resource_comment": True,
@@ -148,11 +164,7 @@ class Linter(visitor.Visitor):
             "CO01", message_id, self.path
         ):
             found_brands = []
-            for brand in self.brand_names:
-                if brand == re.escape(brand):
-                    brand_re = re.compile(r"\b" + brand + r"\b")
-                else:
-                    brand_re = re.compile(brand)
+            for brand, brand_re in self.brand_patterns:
                 if brand_re.search(cleaned_str):
                     found_brands.append(brand)
             if found_brands:
@@ -197,16 +209,18 @@ class Linter(visitor.Visitor):
                 "TE03",
                 "Single-quoted strings should use Unicode \u2018foo\u2019 instead of 'foo'.",
             )
-        if self.config.get("TE04", {}).get(
-            "enabled", True
-        ) and self.double_quote_re.search(cleaned_str):
-            # Ignore parameterized terms and other functions
+        if (
+            self.config.get("TE04", {}).get("enabled", True)
+            and self.double_quote_re.search(cleaned_str)
+            and not self.exclude_message("TE04", message_id)
+        ):
+            # Ignore parameterized terms and other functions. Strip on a copy so
+            # this does not affect later checks (e.g. TE05) that reuse cleaned_str.
+            stripped_str = cleaned_str
             for regex in self.ftl_syntax_re:
-                cleaned_str = regex.sub("", cleaned_str)
+                stripped_str = regex.sub("", stripped_str)
 
-            if self.double_quote_re.search(cleaned_str) and not self.exclude_message(
-                "TE04", message_id
-            ):
+            if self.double_quote_re.search(stripped_str):
                 self.add_error(
                     node,
                     message_id,
@@ -252,7 +266,6 @@ class Linter(visitor.Visitor):
         # Log errors if attributes are not supported
         if "SY05" in self.config and self.config["SY05"]["disabled"]:
             self.add_error(node, None, "SY05", "Attributes are not supported.")
-            pass
         else:
             # Only visit values for Attribute nodes, the identifier comes from dom.
             super().generic_visit(node.value)
@@ -494,7 +507,6 @@ class Linter(visitor.Visitor):
         # Log errors if variants are not supported
         if node.variants and "SY04" in self.config and self.config["SY04"]["disabled"]:
             self.add_error(node, None, "SY04", "Variants are not supported.")
-            pass
         else:
             # We only want to visit the variant values, the identifiers in selectors
             # and keys are allowed to be free form.
@@ -517,7 +529,7 @@ class Linter(visitor.Visitor):
 
         # Log errors if terms are not supported
         if "SY01" in self.config and self.config["SY01"]["disabled"]:
-            self.add_error(node, node.id, "SY01", "Terms are not supported.")
+            self.add_error(node, node.id.name, "SY01", "Terms are not supported.")
 
         super().generic_visit(node)
 
@@ -526,9 +538,9 @@ class Linter(visitor.Visitor):
         if "SY03" in self.config and self.config["SY03"]["disabled"]:
             self.add_error(node, None, "SY03", "Terms are not supported.")
 
-        # Reset comment and variable references after reading the message
-        self.state["comment"] = ""
-        self.state["variables"] = []
+        # NOTE: do not reset comment/variable state here. A term reference
+        # occurs mid-message, so resetting would drop variables collected before
+        # it and break the VC01 check. State is reset in visit_Message instead.
 
     def visit_TextElement(self, node):
         html_stripper = MLStripper()
@@ -541,8 +553,7 @@ class Linter(visitor.Visitor):
             "CO02", message_id, self.path
         ):
             found_banned_words = []
-            for word in self.banned_words:
-                bannedword_re = re.compile(r"\b" + word + r"\b")
+            for word, bannedword_re in self.banned_word_patterns:
                 if bannedword_re.search(cleaned_str.lower()):
                     found_banned_words.append(word)
             if found_banned_words:
@@ -621,7 +632,11 @@ def get_newlines_count_after(span, contents):
 
 
 def get_newlines_count_before(span, contents):
-    # Determine the range of newline characters.
+    # Determine the range of newline characters. Index 0 is intentionally
+    # excluded: mid-file, one newline is the previous content line's terminator,
+    # so a count of 2 means "one empty line before". At the start of the file
+    # there is no preceding content line, and skipping index 0 keeps that case
+    # consistent with the mid-file semantics.
     count = 0
     for i in range(span.start - 1, 0, -1):
         assert contents[i] != "\r", "This linter does not handle \\r characters."

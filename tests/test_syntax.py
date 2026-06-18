@@ -22,6 +22,9 @@ class TestSyntax(unittest.TestCase):
         results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY01" in results[0])
+        # The message ID should be the term name, not a serialized AST node.
+        self.assertTrue("Message ID: foo" in results[0])
+        self.assertTrue("Identifier" not in results[0])
 
     def testSY02(self):
         content = """

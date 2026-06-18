@@ -108,6 +108,34 @@ message-attribute-with-comment =
         results = self.checkContent({}, content)
         self.assertEqual(len(results), 0)
 
+    def testVC06(self):
+        # A term reference occurring mid-message must not drop variables
+        # collected before it: both $name and $count should be flagged.
+        content = """
+message-with-term-ref = Hello { $name }, see { -brand } now with { $count } items.
+"""
+        config = {
+            "VC": {
+                "disabled": False,
+            }
+        }
+        results = self.checkContent(config, content)
+        self.assertEqual(len(results), 1)
+        self.assertTrue("VC01" in results[0])
+        self.assertTrue("$name" in results[0])
+        self.assertTrue("$count" in results[0])
+
+        # When the comment documents both variables, no error is reported even
+        # though a term reference appears between them.
+        content = """
+# Variables:
+# $name (String): the user name
+# $count (Number): number of items
+message-with-term-ref = Hello { $name }, see { -brand } now with { $count } items.
+"""
+        results = self.checkContent(config, content)
+        self.assertEqual(len(results), 0)
+
     def testVC05(self):
         content = """
 message-selection-function =
