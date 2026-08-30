@@ -74,3 +74,69 @@ foo = { $foovar }
         results = self.checkContent(config, content)
         self.assertEqual(len(results), 1)
         self.assertTrue("SY06" in results[0])
+
+    def testSY07(self):
+        # Localized plural categories never match: this is the bug the rule
+        # exists to catch.
+        content = """
+foo = { $count ->
+    [uno] bar1
+   *[otro] bar2
+}
+"""
+        config = {"SY07": {"enabled": True}}
+        results = self.checkContent(config, content)
+        self.assertEqual(len(results), 2)
+        self.assertTrue("SY07" in results[0])
+        self.assertTrue("uno" in results[0])
+        self.assertTrue("otro" in results[1])
+        self.assertTrue("Message ID: foo" in results[0])
+
+    def testSY07_valid(self):
+        # Plural categories and number literals are both accepted.
+        content = """
+foo = { $count ->
+    [0] bar0
+    [one] bar1
+    [few] bar2
+   *[other] bar3
+}
+"""
+        config = {"SY07": {"enabled": True}}
+        self.assertEqual(len(self.checkContent(config, content)), 0)
+
+    def testSY07_disabled_by_default(self):
+        content = """
+foo = { $count ->
+    [uno] bar1
+   *[otro] bar2
+}
+"""
+        self.assertEqual(len(self.checkContent({}, content)), 0)
+        self.assertEqual(
+            len(self.checkContent({"SY07": {"enabled": False}}, content)), 0
+        )
+
+    def testSY07_function_selector(self):
+        # PLATFORM() and other function selects are free form by design.
+        content = """
+foo = { PLATFORM() ->
+    [windows] bar1
+    [macos] bar2
+   *[other] bar3
+}
+"""
+        config = {"SY07": {"enabled": True}}
+        self.assertEqual(len(self.checkContent(config, content)), 0)
+
+    def testSY07_exclusions(self):
+        content = """
+foo = { $count ->
+    [uno] bar1
+   *[otro] bar2
+}
+"""
+        config = {
+            "SY07": {"enabled": True, "exclusions": {"messages": ["foo"], "files": []}}
+        }
+        self.assertEqual(len(self.checkContent(config, content)), 0)

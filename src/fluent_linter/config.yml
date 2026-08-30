@@ -66,6 +66,19 @@
 # SY04: variants
 # SY05: attributes
 # SY06: variable references
+#
+# SY07 is different: it checks that select variant keys are plural categories
+# (zero, one, two, few, many, other) or numbers, instead of disabling a
+# feature, so it uses `enabled` and is off by default. Only turn it on if every
+# select in the project is a plural select. Selects on a function, such as
+# PLATFORM(), are never checked.
+#
+# Example:
+# SY07:
+#     enabled: true
+#     exclusions:
+#         messages: []
+#         files: []
 
 # Comments
 #

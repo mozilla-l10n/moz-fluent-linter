@@ -24,6 +24,13 @@ except Exception:
     version = "--"
 
 
+# Fluent matches a number against its CLDR plural category, and those category
+# names are always these English identifiers. A localized key such as [uno] or
+# *[outros] parses correctly but can never match, silently falling back to the
+# default variant.
+CLDR_PLURAL_CATEGORIES = ("zero", "one", "two", "few", "many", "other")
+
+
 class MLStripper(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -513,6 +520,8 @@ class Linter(visitor.Visitor):
             for variant in node.variants:
                 super().generic_visit(variant.value)
 
+            self.check_plural_categories(node)
+
         # Store the variable used for the SelectExpression, excluding functions
         # like PLATFORM()
         if (
@@ -575,6 +584,37 @@ class Linter(visitor.Visitor):
         # Log errors if variable references are not supported
         if "SY06" in self.config and self.config["SY06"]["disabled"]:
             self.add_error(node, None, "SY06", "Variable references are not supported.")
+
+    def check_plural_categories(self, node):
+        """Check that variant keys are plural categories (SY07).
+
+        Only meaningful for projects whose selects are all plural selects, so
+        the rule is opt-in. Selects on a function such as PLATFORM() are always
+        free form and are never checked.
+        """
+        message_id = self.last_message_id
+        if (
+            not self.config.get("SY07", {}).get("enabled", False)
+            or isinstance(node.selector, ast.FunctionReference)
+            or self.exclude_message("SY07", message_id, self.path)
+        ):
+            return
+
+        for variant in node.variants:
+            key = variant.key
+            # A number literal, e.g. [0] or [1], matches that exact value.
+            if isinstance(key, ast.NumberLiteral):
+                continue
+            if key.name not in CLDR_PLURAL_CATEGORIES:
+                self.add_error(
+                    variant,
+                    message_id,
+                    "SY07",
+                    f"Variant key '{key.name}' is not a plural category. Use one "
+                    f"of {', '.join(CLDR_PLURAL_CATEGORIES)}, or a number. "
+                    "Plural categories must not be translated, a localized key "
+                    "never matches.",
+                )
 
     def add_error(self, node, message_id, rule, msg):
         (col, line) = self.span_to_line_and_col(node.span)

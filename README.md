@@ -13,6 +13,25 @@ It allows to check reference FTL files for common issues:
 
 It also allows to limit the range of features supported, for example disabling attributes or variants.
 
+It can also check localized files, not just reference ones: `SY07` reports select
+variant keys that are not CLDR plural categories (`zero`, `one`, `two`, `few`,
+`many`, `other`) or numbers. Fluent matches a number against its plural
+category, and those names are always English identifiers, so a translated key
+such as `[uno]` or `*[outros]` parses correctly but never matches and the
+default variant is silently used instead. The rule is off by default, since
+keys are free form for selects that are not plural selects; enable it only if
+every select in your project is a plural select:
+
+```yaml
+SY07:
+    enabled: true
+    exclusions:
+        messages: []
+        files: []
+```
+
+Selects on a function, such as `PLATFORM()`, are never checked.
+
 ## Version control integration
 
 Using [pre-commit](https://pre-commit.com/), add this to the `.pre-commit-config.yaml` in your repository:
